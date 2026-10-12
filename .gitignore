@@ -8,3 +8,5 @@ uploads/
 dist/
 build/
 *.log
+token
+.gitignore
