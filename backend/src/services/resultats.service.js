@@ -1,0 +1,107 @@
+// Service : calcul des résultats d'une inscription et attestation — « Consulter ses résultats et son attestation » (RG12, RG13, RG14).
+// Les résultats sont calculés à chaque demande, jamais saisis ni stockés (RG13).
+import path from "node:path";
+import { env } from "../config/env.js";
+import { AppError } from "../utils/AppError.js";
+import { genererAttestationPdf } from "../utils/pdf.js";
+import * as Inscription from "../models/inscription.model.js";
+import * as Soumission from "../models/soumission.model.js";
+import * as Attestation from "../models/attestation.model.js";
+import * as Session from "../models/session.model.js";
+
+// RG12 : un module est validé lorsque toutes ses évaluations sont corrigées et que la moyenne (en %) atteint le seuil de réussite.
+export function moduleEstValide(evaluations, seuil = env.seuilReussite) {
+  if (evaluations.length === 0) return false;
+  if (evaluations.some((e) => e.statut !== "corrigee")) return false;
+  const moyenne = evaluations.reduce((somme, e) => somme + (Number(e.note) / e.note_maximale) * 100, 0) / evaluations.length;
+  return moyenne >= seuil;
+}
+
+export async function calculer(idInscription) {
+  const inscription = await Inscription.findById(idInscription);
+  if (!inscription) throw new AppError(404, "Inscription introuvable.");
+  const lignes = await Soumission.evaluationsAvecResultat(idInscription, inscription.id_formation);
+
+  const modules = new Map();
+  for (const l of lignes) {
+    if (!modules.has(l.id_module)) modules.set(l.id_module, { id_module: l.id_module, titre: l.module, evaluations: [] });
+    if (l.id_evaluation) {
+      modules.get(l.id_module).evaluations.push({
+        id_evaluation: l.id_evaluation, intitule: l.intitule, note_maximale: l.note_maximale,
+        statut: l.statut_soumission || "non_soumise", note: l.note === null ? null : Number(l.note), commentaire: l.commentaire,
+      });
+    }
+  }
+  const liste = [...modules.values()].map((m) => ({ ...m, valide: moduleEstValide(m.evaluations) }));
+  const nbValides = liste.filter((m) => m.valide).length;
+  // RG13 : progression = modules validés / modules publiés, en pourcentage.
+  const progression = liste.length === 0 ? 0 : Math.round((nbValides / liste.length) * 100);
+  return { inscription, modules: liste, progression, eligible: liste.length > 0 && nbValides === liste.length, seuil: env.seuilReussite };
+}
+
+async function inscriptionDeLApprenant(idInscription, idApprenant) {
+  const inscription = await Inscription.findById(idInscription);
+  if (!inscription || inscription.id_apprenant !== idApprenant) throw new AppError(404, "Inscription introuvable.");
+  if (inscription.statut_inscription !== "validee") throw new AppError(403, "Cette inscription n'est pas validée.");
+  return inscription;
+}
+
+export async function resultatsApprenant(idInscription, idApprenant) {
+  await inscriptionDeLApprenant(idInscription, idApprenant);
+  const resultats = await calculer(idInscription);
+  resultats.attestation = await Attestation.findByInscription(idInscription);
+  return resultats;
+}
+
+// RG14 : l'attestation n'est délivrée que si tous les modules publiés sont validés ; une seule par inscription.
+export async function delivrerAttestation(idInscription, idApprenant) {
+  await inscriptionDeLApprenant(idInscription, idApprenant);
+  const existante = await Attestation.findByInscription(idInscription);
+  if (existante) return existante;
+  const resultats = await calculer(idInscription);
+  if (!resultats.eligible) {
+    const restants = resultats.modules.filter((m) => !m.valide).map((m) => m.titre);
+    throw new AppError(409, restants.length
+      ? `Attestation refusée : modules restant à valider : ${restants.join(", ")} (RG14).`
+      : "Attestation refusée : la formation ne contient aucun module publié (RG14).");
+  }
+  try {
+    return await Attestation.insert(idInscription);
+  } catch (err) {
+    if (err.code === "23505") return Attestation.findByInscription(idInscription); // demande simultanée : l'attestation existe déjà
+    throw err;
+  }
+}
+
+export async function attestationPdf(idInscription, idApprenant) {
+  const inscription = await inscriptionDeLApprenant(idInscription, idApprenant);
+  const attestation = await Attestation.findByInscription(idInscription);
+  if (!attestation) throw new AppError(404, "Aucune attestation n'a encore été délivrée.");
+  const pdf = await genererAttestationPdf({
+    numero: attestation.numero_attestation, dateDelivrance: attestation.date_delivrance,
+    apprenant: `${inscription.prenom} ${inscription.nom}`, formation: inscription.formation,
+    dateDebut: inscription.date_debut, dateFin: inscription.date_fin,
+  });
+  return { pdf, nom: `${attestation.numero_attestation}.pdf` };
+}
+
+/* ----- Formateur : suivi de la progression de ses apprenants ----- */
+export const sessionsDuFormateur = (idFormateur) => Session.findByFormateur(idFormateur);
+
+export async function progressionSession(idSession, idFormateur) {
+  if (!(await Session.formateurAffecte(idSession, idFormateur))) throw new AppError(403, "Cette session ne vous est pas affectée.");
+  const session = await Session.findById(idSession);
+  const aCorriger = new Map((await Soumission.countACorrigerParSession(idSession)).map((r) => [r.id_inscription, r.n]));
+  const apprenants = [];
+  for (const i of await Inscription.findValideesBySession(idSession)) {
+    const r = await calculer(i.id_inscription);
+    apprenants.push({ id_inscription: i.id_inscription, nom: i.nom, prenom: i.prenom, progression: r.progression, soumissions_a_corriger: aCorriger.get(i.id_inscription) || 0 });
+  }
+  return { session, apprenants };
+}
+
+export async function detailPourFormateur(idInscription, idFormateur) {
+  const inscription = await Inscription.findById(idInscription);
+  if (!inscription || !(await Session.formateurAffecte(inscription.id_session, idFormateur))) throw new AppError(403, "Cette inscription ne relève pas de vos sessions.");
+  return calculer(idInscription);
+}
