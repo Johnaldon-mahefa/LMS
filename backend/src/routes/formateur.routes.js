@@ -5,6 +5,7 @@ import { uploadRessource } from "../middlewares/upload.js";
 import * as Contenu from "../controllers/contenu.controller.js";
 import * as Corrections from "../controllers/corrections.controller.js";
 import * as Suivi from "../controllers/suivi.controller.js";
+import * as Qcm from "../controllers/qcm.controller.js"; // <-- AJOUT IMPORTANT
 
 const r = Router();
 r.use(authenticate, requireRole("formateur"));
@@ -24,6 +25,12 @@ r.delete("/ressources/:id", Contenu.supprimerRessource);
 r.post("/modules/:id/evaluations", Contenu.creerEvaluation);
 r.put("/evaluations/:id", Contenu.modifierEvaluation);
 r.delete("/evaluations/:id", Contenu.supprimerEvaluation);
+
+// === ROUTES POUR LE QCM (C'EST CE QUI MANQUAIT) ===
+r.get("/evaluations/:id/questions", Qcm.listerQuestions);
+r.post("/evaluations/:id/questions", Qcm.creerQuestion);
+r.post("/questions/:id/propositions", Qcm.ajouterProposition);
+// ==================================================
 
 r.get("/soumissions/a-corriger", Corrections.aCorriger);
 r.get("/soumissions/:id", Corrections.detail);

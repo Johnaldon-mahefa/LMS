@@ -21,7 +21,7 @@ export async function mesFormations(idApprenant) {
 export async function contenuInscription(idInscription, idApprenant) {
   const inscription = await Inscription.findById(idInscription);
   if (!inscription || inscription.id_apprenant !== idApprenant || inscription.statut_inscription !== "validee")
-    throw new AppError(403, "Accès refusé : inscription non validée (RG8).");
+    throw new AppError(403, "Accès refusé : inscription non validée.");
   const modules = await Module.findByFormation(inscription.id_formation, { seulementPublies: true });
   for (const m of modules) {
     m.lecons = await Lecon.findByModule(m.id_module);

@@ -34,13 +34,13 @@ export async function detail(id) {
 export async function creer(donnees) {
   verifierFormation(donnees);
   if (await Formation.existsIntitule(donnees.intitule.trim())) throw new AppError(409, "Une formation porte déjà cet intitulé.");
-  const id = await Formation.insert({ ...donnees, intitule: donnees.intitule.trim() }); // statut « brouillon » par défaut (RG3)
+  const id = await Formation.insert({ ...donnees, intitule: donnees.intitule.trim() });
   return Formation.findById(id);
 }
 
 export async function modifier(id, donnees) {
   const formation = await chargerFormation(id);
-  if (formation.statut_formation === "archivee") throw new AppError(409, "Une formation archivée ne peut plus être modifiée.");
+  if (formation.statut_formation === "archivee") throw new AppError(409, "Une formation archivée ne peut plus être modifiée. Restaurez-la d'abord.");
   verifierFormation(donnees);
   if (await Formation.existsIntitule(donnees.intitule.trim(), id)) throw new AppError(409, "Une formation porte déjà cet intitulé.");
   await Formation.update(id, { ...donnees, intitule: donnees.intitule.trim() });
@@ -50,22 +50,31 @@ export async function modifier(id, donnees) {
 // RG3 : une formation ne peut être publiée que si elle contient au moins un module publié.
 export async function publier(id) {
   const formation = await chargerFormation(id);
-  if (formation.statut_formation === "archivee") throw new AppError(409, "Une formation archivée ne peut pas être publiée.");
-  if (formation.nb_modules_publies < 1) throw new AppError(409, "Publication refusée : la formation ne contient aucun module publié (RG3).");
+  if (formation.statut_formation === "archivee") throw new AppError(409, "Une formation archivée ne peut pas être publiée. Restaurez-la d'abord.");
+  if (formation.nb_modules_publies < 1) throw new AppError(409, "Publication refusée : la formation ne contient aucun module publié.");
   await Formation.setStatut(id, "publiee");
   return Formation.findById(id);
 }
 
 export async function archiver(id) {
-  await chargerFormation(id);
+  const formation = await chargerFormation(id);
+  if (formation.statut_formation === "archivee") throw new AppError(409, "Cette formation est déjà archivée.");
   await Formation.setStatut(id, "archivee");
+  return Formation.findById(id);
+}
+
+// Restaure une formation archivée : la remet en brouillon pour pouvoir être retravaillée ou republiée.
+export async function restaurer(id) {
+  const formation = await chargerFormation(id);
+  if (formation.statut_formation !== "archivee") throw new AppError(409, "Seule une formation archivée peut être restaurée.");
+  await Formation.setStatut(id, "brouillon");
   return Formation.findById(id);
 }
 
 // RG4 : une formation qui possède au moins une session ne peut pas être supprimée, seulement archivée.
 export async function supprimer(id) {
   const formation = await chargerFormation(id);
-  if (formation.nb_sessions > 0) throw new AppError(409, "Suppression impossible : la formation possède des sessions. Elle peut être archivée (RG4).");
+  if (formation.nb_sessions > 0) throw new AppError(409, "Suppression impossible : la formation possède des sessions. Elle peut être archivée.");
   await Formation.remove(id);
 }
 
@@ -87,10 +96,9 @@ export async function modifierSession(id, donnees) {
   return Session.findById(id);
 }
 
-// RG5 : une session qui possède des inscriptions ne peut pas être supprimée.
 export async function supprimerSession(id) {
   const session = await chargerSession(id);
-  if (session.nb_inscriptions > 0) throw new AppError(409, "Suppression impossible : la session possède des inscriptions (RG5).");
+  if (session.nb_inscriptions > 0) throw new AppError(409, "Suppression impossible : la session possède des inscriptions.");
   await Session.remove(id);
 }
 

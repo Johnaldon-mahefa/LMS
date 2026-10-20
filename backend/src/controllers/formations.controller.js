@@ -8,6 +8,7 @@ export const creer = cree((req) => Service.creer(req.body));
 export const modifier = ok((req) => Service.modifier(id(req), req.body));
 export const publier = ok((req) => Service.publier(id(req)));
 export const archiver = ok((req) => Service.archiver(id(req)));
+export const restaurer = ok((req) => Service.restaurer(id(req)));
 export const supprimer = sansContenu((req) => Service.supprimer(id(req)));
 export const creerSession = cree((req) => Service.creerSession(id(req), req.body));
 export const modifierSession = ok((req) => Service.modifierSession(id(req), req.body));

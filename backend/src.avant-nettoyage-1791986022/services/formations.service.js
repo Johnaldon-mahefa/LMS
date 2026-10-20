@@ -1,0 +1,110 @@
+// Service : règles de gestion de « Organiser les formations » — classes Formation et Session (RG3, RG4, RG5, RG9).
+import { AppError } from "../utils/AppError.js";
+import * as Formation from "../models/formation.model.js";
+import * as Session from "../models/session.model.js";
+import * as Utilisateur from "../models/utilisateur.model.js";
+
+async function chargerFormation(id) {
+  const formation = await Formation.findById(id);
+  if (!formation) throw new AppError(404, "Formation introuvable.");
+  return formation;
+}
+async function chargerSession(id) {
+  const session = await Session.findById(id);
+  if (!session) throw new AppError(404, "Session introuvable.");
+  return session;
+}
+function verifierFormation({ intitule, duree }) {
+  if (!intitule || !intitule.trim()) throw new AppError(400, "L'intitulé de la formation est obligatoire.");
+  if (duree !== undefined && duree !== null && duree !== "" && !(Number(duree) > 0)) throw new AppError(400, "La durée doit être positive.");
+}
+function verifierSession({ dateDebut, dateFin, capaciteMax }) {
+  if (!dateDebut || !dateFin) throw new AppError(400, "Les dates de début et de fin sont obligatoires.");
+  if (dateFin < dateDebut) throw new AppError(400, "La date de fin doit suivre la date de début.");
+  if (!(Number(capaciteMax) > 0)) throw new AppError(400, "La capacité maximale doit être positive.");
+}
+
+export const lister = () => Formation.findAll();
+
+export async function detail(id) {
+  const formation = await chargerFormation(id);
+  return { ...formation, sessions: await Session.findByFormation(id) };
+}
+
+export async function creer(donnees) {
+  verifierFormation(donnees);
+  if (await Formation.existsIntitule(donnees.intitule.trim())) throw new AppError(409, "Une formation porte déjà cet intitulé.");
+  const id = await Formation.insert({ ...donnees, intitule: donnees.intitule.trim() }); // statut « brouillon » par défaut (RG3)
+  return Formation.findById(id);
+}
+
+export async function modifier(id, donnees) {
+  const formation = await chargerFormation(id);
+  if (formation.statut_formation === "archivee") throw new AppError(409, "Une formation archivée ne peut plus être modifiée.");
+  verifierFormation(donnees);
+  if (await Formation.existsIntitule(donnees.intitule.trim(), id)) throw new AppError(409, "Une formation porte déjà cet intitulé.");
+  await Formation.update(id, { ...donnees, intitule: donnees.intitule.trim() });
+  return Formation.findById(id);
+}
+
+// RG3 : une formation ne peut être publiée que si elle contient au moins un module publié.
+export async function publier(id) {
+  const formation = await chargerFormation(id);
+  if (formation.statut_formation === "archivee") throw new AppError(409, "Une formation archivée ne peut pas être publiée.");
+  if (formation.nb_modules_publies < 1) throw new AppError(409, "Publication refusée : la formation ne contient aucun module publié (RG3).");
+  await Formation.setStatut(id, "publiee");
+  return Formation.findById(id);
+}
+
+export async function archiver(id) {
+  await chargerFormation(id);
+  await Formation.setStatut(id, "archivee");
+  return Formation.findById(id);
+}
+
+// RG4 : une formation qui possède au moins une session ne peut pas être supprimée, seulement archivée.
+export async function supprimer(id) {
+  const formation = await chargerFormation(id);
+  if (formation.nb_sessions > 0) throw new AppError(409, "Suppression impossible : la formation possède des sessions. Elle peut être archivée (RG4).");
+  await Formation.remove(id);
+}
+
+/* ----- Sessions et affectation des formateurs (RG5) ----- */
+export async function creerSession(idFormation, donnees) {
+  const formation = await chargerFormation(idFormation);
+  if (formation.statut_formation === "archivee") throw new AppError(409, "Impossible d'ajouter une session à une formation archivée.");
+  verifierSession(donnees);
+  const id = await Session.insert(idFormation, { ...donnees, capaciteMax: Number(donnees.capaciteMax) });
+  return Session.findById(id);
+}
+
+export async function modifierSession(id, donnees) {
+  const session = await chargerSession(id);
+  verifierSession(donnees);
+  if (Number(donnees.capaciteMax) < session.capacite_max - session.places_restantes)
+    throw new AppError(409, "La capacité ne peut pas être inférieure au nombre d'inscriptions validées.");
+  await Session.update(id, { ...donnees, capaciteMax: Number(donnees.capaciteMax) });
+  return Session.findById(id);
+}
+
+// RG5 : une session qui possède des inscriptions ne peut pas être supprimée.
+export async function supprimerSession(id) {
+  const session = await chargerSession(id);
+  if (session.nb_inscriptions > 0) throw new AppError(409, "Suppression impossible : la session possède des inscriptions (RG5).");
+  await Session.remove(id);
+}
+
+export async function affecterFormateur(idSession, idFormateur) {
+  await chargerSession(idSession);
+  const formateur = await Utilisateur.findById(Number(idFormateur));
+  if (!formateur || !formateur.roles.includes("formateur") || formateur.statut_compte !== "actif")
+    throw new AppError(400, "L'utilisateur choisi n'est pas un formateur actif.");
+  await Session.addFormateur(idSession, formateur.id_utilisateur);
+  return Session.findById(idSession);
+}
+
+export async function retirerFormateur(idSession, idFormateur) {
+  await chargerSession(idSession);
+  await Session.removeFormateur(idSession, idFormateur);
+  return Session.findById(idSession);
+}

@@ -14,7 +14,6 @@ export async function findById(id) {
 export async function findByInscriptionAndEvaluation(idInscription, idEvaluation) {
   return (await query(`SELECT ${COLS} ${FROM} WHERE s.id_inscription = $1 AND s.id_evaluation = $2`, [idInscription, idEvaluation])).rows[0] || null;
 }
-// Soumissions à corriger : celles des apprenants des sessions affectées au formateur (RG11).
 export async function findACorriger(idFormateur) {
   return (await query(
     `SELECT ${COLS} ${FROM} WHERE s.statut_soumission = 'soumise'
@@ -29,10 +28,10 @@ export async function insert({ idInscription, idEvaluation, nomFichier, cheminFi
 export const corriger = (id, note, commentaire) =>
   query("UPDATE soumission SET note=$2, commentaire=$3, statut_soumission='corrigee' WHERE id_soumission=$1", [id, note, commentaire || null]);
 
-// Toutes les évaluations des modules publiés d'une formation, avec la soumission éventuelle de l'inscription (calcul RG12, RG13).
 export async function evaluationsAvecResultat(idInscription, idFormation) {
   return (await query(
-    `SELECT m.id_module, m.titre AS module, m.ordre, e.id_evaluation, e.intitule, e.note_maximale,
+    `SELECT m.id_module, m.titre AS module, m.ordre, 
+            e.id_evaluation, e.intitule, e.note_maximale, e.type_evaluation, e.seuil_reussite,
             s.id_soumission, s.statut_soumission, s.note, s.commentaire
      FROM module m
      LEFT JOIN evaluation e ON e.id_module = m.id_module
@@ -40,6 +39,7 @@ export async function evaluationsAvecResultat(idInscription, idFormation) {
      WHERE m.id_formation = $2 AND m.statut_module = 'publie'
      ORDER BY m.ordre, m.id_module, e.id_evaluation`, [idInscription, idFormation])).rows;
 }
+
 export async function countACorrigerParSession(idSession) {
   return (await query(
     `SELECT i.id_inscription, COUNT(*)::int AS n FROM soumission s JOIN inscription i ON i.id_inscription = s.id_inscription

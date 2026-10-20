@@ -1,0 +1,31 @@
+:root { font-family: "Segoe UI", Arial, sans-serif; color: #1f2933; }
+body { margin: 0; background: #f4f6f8; }
+.bandeau { display: flex; gap: 24px; align-items: center; justify-content: space-between; padding: 12px 24px; background: #1f3a5f; color: #fff; }
+.bandeau nav a { color: #fff; margin-right: 16px; }
+.bandeau button { margin-left: 12px; }
+main { padding: 24px; }
+.carte { max-width: 900px; margin: 0 auto 24px; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.centre { max-width: 380px; margin-top: 80px; }
+form label { display: block; margin-bottom: 12px; }
+input { display: block; width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+input[type=checkbox] { display: inline; width: auto; }
+.grille { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin-bottom: 24px; }
+fieldset { grid-column: 1 / -1; margin-bottom: 12px; }
+button { padding: 8px 14px; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e3e8ee; }
+.erreur { color: #b42318; } .ok { color: #067647; }
+.large { max-width: 1100px; }
+.bloc { border: 1px solid #e3e8ee; border-radius: 6px; padding: 12px 16px; margin: 16px 0; }
+.sous-bloc { margin: 8px 0; padding: 8px 0; border-top: 1px dashed #d0d7de; }
+.ligne { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin: 12px 0; }
+.ligne label { margin-bottom: 0; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.etiquette { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #e5e7eb; }
+.etiquette.publiee, .etiquette.publie, .etiquette.validee, .etiquette.actif { background: #d1fadf; }
+.etiquette.en_attente, .etiquette.brouillon { background: #fef0c7; }
+.etiquette.refusee, .etiquette.annulee, .etiquette.archivee, .etiquette.desactive { background: #fee4e2; }
+.puce { background: #eef2ff; border-radius: 10px; padding: 2px 8px; margin-right: 6px; display: inline-block; }
+.puce button { border: none; background: none; padding: 0 0 0 4px; }
+button.lien { border: none; background: none; color: #1d4ed8; text-decoration: underline; padding: 0; }
+select { padding: 6px; margin-top: 4px; }

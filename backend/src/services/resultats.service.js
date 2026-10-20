@@ -1,41 +1,63 @@
-// Service : calcul des résultats d'une inscription et attestation — « Consulter ses résultats et son attestation » (RG12, RG13, RG14).
-// Les résultats sont calculés à chaque demande, jamais saisis ni stockés (RG13).
-import path from "node:path";
-import { env } from "../config/env.js";
+// Service : calcul des résultats d'une inscription et attestation.
+import * as Notifications from "./notifications.service.js";
 import { AppError } from "../utils/AppError.js";
 import { genererAttestationPdf } from "../utils/pdf.js";
 import * as Inscription from "../models/inscription.model.js";
 import * as Soumission from "../models/soumission.model.js";
+import * as Tentative from "../models/tentative.model.js";
 import * as Attestation from "../models/attestation.model.js";
 import * as Session from "../models/session.model.js";
+import * as Utilisateur from "../models/utilisateur.model.js";
+import * as Mailer from "./mailer.service.js";
+import { emailAttestation } from "../utils/emailTemplates.js";
+import { env } from "../config/env.js";
 
-// RG12 : un module est validé lorsque toutes ses évaluations sont corrigées et que la moyenne (en %) atteint le seuil de réussite.
-export function moduleEstValide(evaluations, seuil = env.seuilReussite) {
-  if (evaluations.length === 0) return false;
-  if (evaluations.some((e) => e.statut !== "corrigee")) return false;
-  const moyenne = evaluations.reduce((somme, e) => somme + (Number(e.note) / e.note_maximale) * 100, 0) / evaluations.length;
-  return moyenne >= seuil;
+export function estEvaluationValide(e) {
+  const seuil = e.seuil_reussite ? Number(e.seuil_reussite) : env.seuilReussite;
+  
+  const valideFichier = e.statut === "corrigee" && e.note !== null && (Number(e.note) / e.note_maximale) * 100 >= seuil;
+  const valideQcm = e.meilleur_score !== null && e.meilleur_score !== undefined && (Number(e.meilleur_score) / e.note_maximale) * 100 >= seuil;
+
+  if (e.type_evaluation === 'fichier') return valideFichier;
+  if (e.type_evaluation === 'qcm') return valideQcm;
+  if (e.type_evaluation === 'mixte') return valideFichier && valideQcm;
+  return false;
 }
 
 export async function calculer(idInscription) {
   const inscription = await Inscription.findById(idInscription);
   if (!inscription) throw new AppError(404, "Inscription introuvable.");
+  
   const lignes = await Soumission.evaluationsAvecResultat(idInscription, inscription.id_formation);
+  const tentatives = await Tentative.findMeilleuresParInscription(idInscription);
+  const mapTentatives = new Map(tentatives.map(t => [t.id_evaluation, t.score]));
 
   const modules = new Map();
   for (const l of lignes) {
     if (!modules.has(l.id_module)) modules.set(l.id_module, { id_module: l.id_module, titre: l.module, evaluations: [] });
     if (l.id_evaluation) {
       modules.get(l.id_module).evaluations.push({
-        id_evaluation: l.id_evaluation, intitule: l.intitule, note_maximale: l.note_maximale,
-        statut: l.statut_soumission || "non_soumise", note: l.note === null ? null : Number(l.note), commentaire: l.commentaire,
+        id_evaluation: l.id_evaluation, 
+        intitule: l.intitule, 
+        note_maximale: l.note_maximale, 
+        type_evaluation: l.type_evaluation,
+        seuil_reussite: l.seuil_reussite,
+        statut: l.statut_soumission || "non_soumise", 
+        note: l.note === null ? null : Number(l.note), 
+        commentaire: l.commentaire,
+        meilleur_score: mapTentatives.has(l.id_evaluation) ? Number(mapTentatives.get(l.id_evaluation)) : null
       });
     }
   }
-  const liste = [...modules.values()].map((m) => ({ ...m, valide: moduleEstValide(m.evaluations) }));
+
+  const liste = [...modules.values()].map((m) => {
+    const toutesValidees = m.evaluations.every(e => estEvaluationValide(e));
+    return { ...m, valide: m.evaluations.length > 0 && toutesValidees };
+  });
+
   const nbValides = liste.filter((m) => m.valide).length;
-  // RG13 : progression = modules validés / modules publiés, en pourcentage.
   const progression = liste.length === 0 ? 0 : Math.round((nbValides / liste.length) * 100);
+  
   return { inscription, modules: liste, progression, eligible: liste.length > 0 && nbValides === liste.length, seuil: env.seuilReussite };
 }
 
@@ -53,7 +75,20 @@ export async function resultatsApprenant(idInscription, idApprenant) {
   return resultats;
 }
 
-// RG14 : l'attestation n'est délivrée que si tous les modules publiés sont validés ; une seule par inscription.
+async function envoyerEmailAttestation(inscription, attestation) {
+  try {
+    const u = await Utilisateur.findById(inscription.id_apprenant);
+    if (!u || !u.identifiant || !u.identifiant.includes("@")) return;
+    const tpl = emailAttestation({
+      prenom: u.prenom, formation: inscription.formation, numero: attestation.numero_attestation,
+      urlPlateforme: `${process.env.FRONTEND_URL || "http://localhost:5173"}/resultats`,
+    });
+    await Mailer.envoyer({ to: u.identifiant, subject: tpl.subject, html: tpl.html, text: tpl.text });
+  } catch (err) {
+    console.error("[resultats.delivrerAttestation] email :", err.message);
+  }
+}
+
 export async function delivrerAttestation(idInscription, idApprenant) {
   await inscriptionDeLApprenant(idInscription, idApprenant);
   const existante = await Attestation.findByInscription(idInscription);
@@ -65,12 +100,15 @@ export async function delivrerAttestation(idInscription, idApprenant) {
       ? `Attestation refusée : modules restant à valider : ${restants.join(", ")} (RG14).`
       : "Attestation refusée : la formation ne contient aucun module publié (RG14).");
   }
+  let attestation;
   try {
-    return await Attestation.insert(idInscription);
+    attestation = await Attestation.insert(idInscription);
   } catch (err) {
-    if (err.code === "23505") return Attestation.findByInscription(idInscription); // demande simultanée : l'attestation existe déjà
+    if (err.code === "23505") return Attestation.findByInscription(idInscription);
     throw err;
   }
+  envoyerEmailAttestation(resultats.inscription, attestation);
+  return attestation;
 }
 
 export async function attestationPdf(idInscription, idApprenant) {
@@ -85,7 +123,6 @@ export async function attestationPdf(idInscription, idApprenant) {
   return { pdf, nom: `${attestation.numero_attestation}.pdf` };
 }
 
-/* ----- Formateur : suivi de la progression de ses apprenants ----- */
 export const sessionsDuFormateur = (idFormateur) => Session.findByFormateur(idFormateur);
 
 export async function progressionSession(idSession, idFormateur) {

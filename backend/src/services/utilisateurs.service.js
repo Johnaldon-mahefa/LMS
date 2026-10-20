@@ -4,12 +4,13 @@ import { withTransaction } from "../config/db.js";
 import { AppError } from "../utils/AppError.js";
 import * as Utilisateur from "../models/utilisateur.model.js";
 import * as Role from "../models/role.model.js";
+import * as Mailer from "./mailer.service.js";
+import { emailBienvenue } from "../utils/emailTemplates.js";
 
 const ROLES_VALIDES = ["administrateur", "formateur", "apprenant"];
 
 function verifierRoles(roles) {
-  // RG1 : au moins un rôle, parmi les rôles existants.
-  if (!Array.isArray(roles) || roles.length === 0) throw new AppError(400, "Au moins un rôle est obligatoire (RG1).");
+  if (!Array.isArray(roles) || roles.length === 0) throw new AppError(400, "Au moins un rôle est obligatoire.");
   if (roles.some((r) => !ROLES_VALIDES.includes(r))) throw new AppError(400, "Rôle inconnu.");
 }
 
@@ -32,7 +33,20 @@ export async function creer({ nom, prenom, identifiant, roles, motDePasse }) {
     await Utilisateur.setRoles(client, idUtilisateur, rolesTrouves.map((r) => r.id_role));
     return idUtilisateur;
   });
-  return Utilisateur.findById(id);
+
+  const utilisateur = await Utilisateur.findById(id);
+
+  // Envoi d'email de bienvenue (uniquement si l'identifiant est un email)
+  if (identifiant.includes("@")) {
+    const template = emailBienvenue({
+      prenom, nom, identifiant, motDePasse,
+      urlPlateforme: `${process.env.FRONTEND_URL || "http://localhost:5173"}/connexion`,
+    });
+    Mailer.envoyer({ to: identifiant, subject: template.subject, html: template.html, text: template.text })
+      .catch((err) => console.error("[utilisateurs.creer] email :", err));
+  }
+
+  return utilisateur;
 }
 
 export async function modifier(id, { nom, prenom, roles }) {
@@ -48,11 +62,18 @@ export async function modifier(id, { nom, prenom, roles }) {
   return Utilisateur.findById(id);
 }
 
-// RG2 : un compte est désactivé, jamais supprimé ; l'administrateur ne peut pas désactiver son propre compte.
 export async function desactiver(id, idActeur) {
-  if (id === idActeur) throw new AppError(403, "Vous ne pouvez pas désactiver votre propre compte (RG2).");
+  if (id === idActeur) throw new AppError(403, "Vous ne pouvez pas désactiver votre propre compte.");
   if (!(await Utilisateur.findById(id))) throw new AppError(404, "Utilisateur introuvable.");
   await Utilisateur.setStatut(id, "desactive");
+  return Utilisateur.findById(id);
+}
+
+export async function reactiver(id) {
+  const utilisateur = await Utilisateur.findById(id);
+  if (!utilisateur) throw new AppError(404, "Utilisateur introuvable.");
+  if (utilisateur.statut_compte === "actif") throw new AppError(409, "Ce compte est déjà actif.");
+  await Utilisateur.setStatut(id, "actif");
   return Utilisateur.findById(id);
 }
 
@@ -60,4 +81,20 @@ export async function reinitialiserMotDePasse(id, nouveau) {
   verifierMotDePasse(nouveau);
   if (!(await Utilisateur.findById(id))) throw new AppError(404, "Utilisateur introuvable.");
   await Utilisateur.setMotDePasse(id, await bcrypt.hash(nouveau, 10));
+}
+// Changement de mot de passe par l'utilisateur lui-même (nécessite l'ancien).
+export async function changerMonMotDePasse(id, { ancien, nouveau }) {
+  if (!ancien || !nouveau) throw new AppError(400, "Ancien et nouveau mot de passe obligatoires.");
+  verifierMotDePasse(nouveau);
+  const utilisateur = await Utilisateur.findById(id);
+  if (!utilisateur) throw new AppError(404, "Utilisateur introuvable.");
+
+  const complet = await Utilisateur.findForLogin(utilisateur.identifiant);
+  if (!complet) throw new AppError(404, "Utilisateur introuvable.");
+
+  const ok = await bcrypt.compare(ancien, complet.mot_de_passe);
+  if (!ok) throw new AppError(401, "Ancien mot de passe incorrect.");
+
+  await Utilisateur.setMotDePasse(id, await bcrypt.hash(nouveau, 10));
+  return { ok: true };
 }
