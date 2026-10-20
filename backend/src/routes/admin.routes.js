@@ -3,9 +3,10 @@ import { Router } from "express";
 import { authenticate, requireRole } from "../middlewares/auth.js";
 import * as Formations from "../controllers/formations.controller.js";
 import * as Inscriptions from "../controllers/inscriptions.controller.js";
-
+import * as Statistiques from "../controllers/statistiques.controller.js";
 const r = Router();
 r.use(authenticate, requireRole("administrateur"));
+r.get("/statistiques", Statistiques.globales);
 
 r.get("/formations", Formations.lister);
 r.post("/formations", Formations.creer);
@@ -13,6 +14,7 @@ r.get("/formations/:id", Formations.detail);
 r.put("/formations/:id", Formations.modifier);
 r.patch("/formations/:id/publier", Formations.publier);
 r.patch("/formations/:id/archiver", Formations.archiver);
+r.patch("/formations/:id/restaurer", Formations.restaurer);
 r.delete("/formations/:id", Formations.supprimer);
 r.post("/formations/:id/sessions", Formations.creerSession);
 r.put("/sessions/:id", Formations.modifierSession);

@@ -6,6 +6,9 @@ import adminRoutes from "./admin.routes.js";
 import formateurRoutes from "./formateur.routes.js";
 import apprenantRoutes from "./apprenant.routes.js";
 import fichiersRoutes from "./fichiers.routes.js";
+import profilRoutes from "./profil.routes.js";
+import notificationsRoutes from "./notifications.routes.js";
+import rechercheRoutes from "./recherche.routes.js";
 
 const router = Router();
 router.get("/sante", (_req, res) => res.json({ statut: "ok" }));
@@ -15,4 +18,7 @@ router.use("/admin", adminRoutes);
 router.use("/formateur", formateurRoutes);
 router.use("/apprenant", apprenantRoutes);
 router.use("/fichiers", fichiersRoutes);
+router.use("/profil", profilRoutes);
+router.use("/notifications", notificationsRoutes);
+router.use("/recherche", rechercheRoutes);
 export default router;

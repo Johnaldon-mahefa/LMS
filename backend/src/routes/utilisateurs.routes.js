@@ -10,5 +10,6 @@ router.get("/", UtilisateursController.lister);
 router.post("/", UtilisateursController.creer);
 router.put("/:id", UtilisateursController.modifier);
 router.patch("/:id/desactiver", UtilisateursController.desactiver);
+router.patch("/:id/reactiver", UtilisateursController.reactiver);
 router.patch("/:id/mot-de-passe", UtilisateursController.reinitialiserMotDePasse);
 export default router;
