@@ -10,23 +10,22 @@ export default function Profil() {
   const [ancien, setAncien] = useState("");
   const [nouveau, setNouveau] = useState("");
   const [confirmation, setConfirmation] = useState("");
-  const [voir, setVoir] = useState(false);
-  const [envoi, setEnvoi] = useState(false);
+  const [afficher, setAfficher] = useState(false);
+  const [chargement, setChargement] = useState(false);
 
-  async function soumettre(e) {
+  async function changerMotDePasse(e) {
     e.preventDefault();
-    if (nouveau.length < 8) {
-      toast.erreur("Le nouveau mot de passe doit contenir au moins 8 caractères.");
-      return;
-    }
     if (nouveau !== confirmation) {
-      toast.erreur("Les deux nouveaux mots de passe ne correspondent pas.");
-      return;
+      return toast.erreur("Les nouveaux mots de passe ne correspondent pas.");
     }
-    setEnvoi(true);
+    if (nouveau.length < 8) {
+      return toast.erreur("Le nouveau mot de passe doit contenir au moins 8 caractères.");
+    }
+
+    setChargement(true);
     try {
-      await api("/profil/mot-de-passe", {
-        method: "PATCH",
+      await api("/auth/mot-de-passe", {
+        method: "PUT",
         body: { ancien, nouveau },
       });
       toast.ok("Mot de passe modifié avec succès.");
@@ -36,98 +35,110 @@ export default function Profil() {
     } catch (err) {
       toast.erreur(err.message);
     } finally {
-      setEnvoi(false);
+      setChargement(false);
     }
   }
 
   return (
-    <>
-      <h1 style={{ marginBottom: 20 }}>Mon profil</h1>
+    <div className="container-fluid py-4">
+      <h1 className="h3 fw-bold mb-4">Mon profil</h1>
 
-      <div className="page-split">
-        {/* COLONNE GAUCHE : informations */}
-        <div className="colonne gauche">
-          <h2>Mes informations</h2>
+      <div className="row g-4">
+        
+        {/* COLONNE GAUCHE : INFORMATIONS */}
+        <div className="col-12 col-lg-5">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body p-4">
+              <h5 className="card-title fw-bold mb-4 text-primary">
+                <i className="bi bi-person-badge me-2"></i> Mes informations
+              </h5>
 
-          <div className="profil-info">
-            <div className="profil-info-ligne">
-              <span>Nom</span>
-              <strong>{utilisateur.nom}</strong>
-            </div>
-            <div className="profil-info-ligne">
-              <span>Prénom</span>
-              <strong>{utilisateur.prenom}</strong>
-            </div>
-            <div className="profil-info-ligne">
-              <span>Identifiant</span>
-              <strong>{utilisateur.identifiant}</strong>
-            </div>
-            <div className="profil-info-ligne">
-              <span>Rôles</span>
-              <strong>{utilisateur.roles.join(", ")}</strong>
+              <div className="d-flex justify-content-between py-3 border-bottom">
+                <span className="text-muted fw-semibold">Nom</span>
+                <span className="fw-bold">{utilisateur.nom}</span>
+              </div>
+              <div className="d-flex justify-content-between py-3 border-bottom">
+                <span className="text-muted fw-semibold">Prénom</span>
+                <span className="fw-bold">{utilisateur.prenom}</span>
+              </div>
+              <div className="d-flex justify-content-between py-3 border-bottom">
+                <span className="text-muted fw-semibold">Identifiant</span>
+                <span className="fw-bold">{utilisateur.identifiant}</span>
+              </div>
+              <div className="d-flex justify-content-between py-3">
+                <span className="text-muted fw-semibold">Rôles</span>
+                <span className="fw-bold text-capitalize">{utilisateur.roles.join(", ")}</span>
+              </div>
             </div>
           </div>
-
-          <p style={{ marginTop: 16, fontSize: 12.5, color: "var(--muted)", lineHeight: 1.5 }}>
-            Pour modifier vos informations personnelles (nom, prénom, identifiant), contactez l'administrateur du centre.
-          </p>
         </div>
 
-        {/* COLONNE DROITE : changement de mot de passe */}
-        <div className="colonne droite">
-          <h2>Changer mon mot de passe</h2>
+        {/* COLONNE DROITE : MOT DE PASSE */}
+        <div className="col-12 col-lg-7">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body p-4">
+              <h5 className="card-title fw-bold mb-4 text-primary">
+                <i className="bi bi-shield-lock me-2"></i> Changer mon mot de passe
+              </h5>
 
-          <form onSubmit={soumettre} className="grille" style={{ maxWidth: 480 }}>
-            <label>
-              Ancien mot de passe
-              <input
-                type={voir ? "text" : "password"}
-                value={ancien}
-                onChange={(e) => setAncien(e.target.value)}
-                required
-                autoFocus
-              />
-            </label>
+              <form onSubmit={changerMotDePasse}>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Ancien mot de passe</label>
+                  <input
+                    type={afficher ? "text" : "password"}
+                    className="form-control"
+                    value={ancien}
+                    onChange={(e) => setAncien(e.target.value)}
+                    required
+                  />
+                </div>
 
-            <label>
-              Nouveau mot de passe (min. 8 caractères)
-              <input
-                type={voir ? "text" : "password"}
-                value={nouveau}
-                onChange={(e) => setNouveau(e.target.value)}
-                minLength={8}
-                required
-              />
-            </label>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Nouveau mot de passe (min. 8 caractères)</label>
+                  <input
+                    type={afficher ? "text" : "password"}
+                    className="form-control"
+                    value={nouveau}
+                    onChange={(e) => setNouveau(e.target.value)}
+                    minLength={8}
+                    required
+                  />
+                </div>
 
-            <label>
-              Confirmer le nouveau mot de passe
-              <input
-                type={voir ? "text" : "password"}
-                value={confirmation}
-                onChange={(e) => setConfirmation(e.target.value)}
-                minLength={8}
-                required
-              />
-            </label>
+                <div className="mb-4">
+                  <label className="form-label fw-semibold">Confirmer le nouveau mot de passe</label>
+                  <input
+                    type={afficher ? "text" : "password"}
+                    className="form-control"
+                    value={confirmation}
+                    onChange={(e) => setConfirmation(e.target.value)}
+                    minLength={8}
+                    required
+                  />
+                </div>
 
-            <div className="ligne" style={{ marginBottom: 8 }}>
-              <label className="case-active">
-                <input
-                  type="checkbox"
-                  checked={voir}
-                  onChange={(e) => setVoir(e.target.checked)}
-                />
-                Afficher les mots de passe
-              </label>
+                <div className="form-check mb-4">
+                  <input
+                    type="checkbox"
+                    className="form-check-input"
+                    id="afficherMdp"
+                    checked={afficher}
+                    onChange={(e) => setAfficher(e.target.checked)}
+                  />
+                  <label className="form-check-label text-muted" htmlFor="afficherMdp" style={{ cursor: "pointer" }}>
+                    Afficher les mots de passe
+                  </label>
+                </div>
+
+                <button type="submit" className="btn btn-primary w-100 py-2 fw-bold" disabled={chargement}>
+                  {chargement ? "Modification en cours..." : "Modifier le mot de passe"}
+                </button>
+              </form>
             </div>
-
-            <button type="submit" disabled={envoi}>
-              {envoi ? "Modification…" : "Modifier le mot de passe"}
-            </button>
-          </form>
+          </div>
         </div>
+
       </div>
-    </>
+    </div>
   );
 }

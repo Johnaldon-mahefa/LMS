@@ -18,25 +18,30 @@ function verifierMotDePasse(mdp) {
   if (!mdp || mdp.length < 8) throw new AppError(400, "Le mot de passe doit contenir au moins 8 caractères.");
 }
 
-export const lister = () => Utilisateur.findAll();
+export const lister = (idEtablissement) => Utilisateur.findAll(idEtablissement);
 
-export async function creer({ nom, prenom, identifiant, roles, motDePasse }) {
+export async function creer(idEtablissement, { nom, prenom, identifiant, roles, motDePasse }) {
   if (!nom || !prenom || !identifiant) throw new AppError(400, "Nom, prénom et identifiant sont obligatoires.");
   verifierRoles(roles);
   verifierMotDePasse(motDePasse);
   const motDePasseHache = await bcrypt.hash(motDePasse, 10);
 
   const id = await withTransaction(async (client) => {
-    if (await Utilisateur.existsByIdentifiant(client, identifiant)) throw new AppError(409, "Cet identifiant est déjà utilisé.");
-    const idUtilisateur = await Utilisateur.insert(client, { identifiant, motDePasseHache, nom, prenom });
+    // On vérifie si l'identifiant existe
+    if (await Utilisateur.existsByIdentifiant(client, identifiant)) {
+      throw new AppError(409, "Cet identifiant est déjà utilisé.");
+    }
+    // On insère l'utilisateur
+    const idUtilisateur = await Utilisateur.insert(client, { idEtablissement, identifiant, motDePasseHache, nom, prenom });
+    // On récupère et assigne les rôles
     const rolesTrouves = await Role.findByNames(client, roles);
     await Utilisateur.setRoles(client, idUtilisateur, rolesTrouves.map((r) => r.id_role));
+    
     return idUtilisateur;
   });
 
   const utilisateur = await Utilisateur.findById(id);
 
-  // Envoi d'email de bienvenue (uniquement si l'identifiant est un email)
   if (identifiant.includes("@")) {
     const template = emailBienvenue({
       prenom, nom, identifiant, motDePasse,
@@ -82,7 +87,7 @@ export async function reinitialiserMotDePasse(id, nouveau) {
   if (!(await Utilisateur.findById(id))) throw new AppError(404, "Utilisateur introuvable.");
   await Utilisateur.setMotDePasse(id, await bcrypt.hash(nouveau, 10));
 }
-// Changement de mot de passe par l'utilisateur lui-même (nécessite l'ancien).
+
 export async function changerMonMotDePasse(id, { ancien, nouveau }) {
   if (!ancien || !nouveau) throw new AppError(400, "Ancien et nouveau mot de passe obligatoires.");
   verifierMotDePasse(nouveau);

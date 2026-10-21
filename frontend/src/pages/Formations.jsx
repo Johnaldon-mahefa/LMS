@@ -32,8 +32,7 @@ export default function Formations() {
       });
   };
 
-  const chargerSessions = (id) =>
-    api(`/admin/formations/${id}`).then((d) => setSessions(d.sessions));
+  const chargerSessions = (id) => api(`/admin/formations/${id}`).then((d) => setSessions(d.sessions));
 
   useEffect(() => {
     charger();
@@ -69,25 +68,14 @@ export default function Formations() {
   };
 
   function ouvrirModif(f) {
-    setModif({
-      id: f.id_formation,
-      intitule: f.intitule,
-      description: f.description || "",
-      duree: f.duree || "",
-      publicVise: f.public_vise || "",
-    });
+    setModif({ id: f.id_formation, intitule: f.intitule, description: f.description || "", duree: f.duree || "", publicVise: f.public_vise || "" });
   }
   async function enregistrerModif(e) {
     e.preventDefault();
     try {
       await api(`/admin/formations/${modif.id}`, {
         method: "PUT",
-        body: {
-          intitule: modif.intitule,
-          description: modif.description,
-          duree: modif.duree,
-          publicVise: modif.publicVise,
-        },
+        body: { intitule: modif.intitule, description: modif.description, duree: modif.duree, publicVise: modif.publicVise },
       });
       toast.ok("Formation modifiée.");
       setModif(null);
@@ -96,22 +84,12 @@ export default function Formations() {
   }
 
   async function supprimerFormation(f) {
-    const ok = await confirmer({
-      titre: "Supprimer cette formation ?",
-      message: `« ${f.intitule} » sera supprimée définitivement.`,
-      danger: true,
-      confirmer: "Supprimer",
-    });
+    const ok = await confirmer({ titre: "Supprimer cette formation ?", message: `« ${f.intitule} » sera supprimée définitivement.`, danger: true, confirmer: "Supprimer" });
     if (!ok) return;
     agir(() => api(`/admin/formations/${f.id_formation}`, { method: "DELETE" }), "Formation supprimée.");
   }
   async function supprimerSession(s) {
-    const ok = await confirmer({
-      titre: "Supprimer cette session ?",
-      message: "Une session qui possède des inscriptions ne peut pas être supprimée.",
-      danger: true,
-      confirmer: "Supprimer",
-    });
+    const ok = await confirmer({ titre: "Supprimer cette session ?", message: "Une session qui possède des inscriptions ne peut pas être supprimée.", danger: true, confirmer: "Supprimer" });
     if (!ok) return;
     agir(() => api(`/admin/sessions/${s.id_session}`, { method: "DELETE" }), "Session supprimée.");
   }
@@ -121,19 +99,9 @@ export default function Formations() {
       <h1 style={{ marginBottom: 20 }}>Organiser les formations</h1>
 
       <div className="page-split">
-        {/* COLONNE GAUCHE : création */}
         <div className="colonne gauche">
           <h2>Nouvelle formation</h2>
-          <form
-            className="grille"
-            onSubmit={(e) => {
-              e.preventDefault();
-              agir(async () => {
-                await api("/admin/formations", { method: "POST", body: form });
-                setForm({ intitule: "", description: "", duree: "", publicVise: "" });
-              }, "Formation créée au statut brouillon.");
-            }}
-          >
+          <form className="grille" onSubmit={(e) => { e.preventDefault(); agir(async () => { await api("/admin/formations", { method: "POST", body: form }); setForm({ intitule: "", description: "", duree: "", publicVise: "" }); }, "Formation créée au statut brouillon."); }}>
             <label>Intitulé<input value={form.intitule} onChange={(e) => setForm({ ...form, intitule: e.target.value })} required /></label>
             <label>Durée (heures)<input type="number" value={form.duree} onChange={(e) => setForm({ ...form, duree: e.target.value })} /></label>
             <label>Description<input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
@@ -142,27 +110,13 @@ export default function Formations() {
           </form>
         </div>
 
-        {/* COLONNE DROITE : filtres en haut + liste */}
         <div className="colonne droite">
           <div className="filtres-haut">
-            <button type="button" onClick={() => setFiltre("toutes")} className={filtre === "toutes" ? "actif" : ""}>
-              Toutes ({formations.length})
-            </button>
-            <button type="button" onClick={() => setFiltre("brouillon")} className={filtre === "brouillon" ? "actif" : ""}>
-              Brouillons ({compte("brouillon")})
-            </button>
-            <button type="button" onClick={() => setFiltre("publiee")} className={filtre === "publiee" ? "actif" : ""}>
-              Publiées ({compte("publiee")})
-            </button>
-            <button type="button" onClick={() => setFiltre("archivee")} className={filtre === "archivee" ? "actif" : ""}>
-              Archivées ({compte("archivee")})
-            </button>
-            <input
-              type="search"
-              placeholder="Rechercher par intitulé…"
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-            />
+            <button type="button" onClick={() => setFiltre("toutes")} className={filtre === "toutes" ? "actif" : ""}>Toutes ({formations.length})</button>
+            <button type="button" onClick={() => setFiltre("brouillon")} className={filtre === "brouillon" ? "actif" : ""}>Brouillons ({compte("brouillon")})</button>
+            <button type="button" onClick={() => setFiltre("publiee")} className={filtre === "publiee" ? "actif" : ""}>Publiées ({compte("publiee")})</button>
+            <button type="button" onClick={() => setFiltre("archivee")} className={filtre === "archivee" ? "actif" : ""}>Archivées ({compte("archivee")})</button>
+            <input type="search" placeholder="Rechercher par intitulé…" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
           </div>
 
           <h2>Liste des formations ({listeFiltree.length})</h2>
@@ -170,29 +124,19 @@ export default function Formations() {
           {chargement ? (
             <Loading texte="Chargement des formations…" />
           ) : listeFiltree.length === 0 ? (
-            <p style={{ textAlign: "center", padding: 20, color: "#6b6485" }}>
-              Aucune formation ne correspond à ce filtre.
-            </p>
+            <p style={{ textAlign: "center", padding: 20, color: "#6b6485" }}>Aucune formation ne correspond à ce filtre.</p>
           ) : (
             listeFiltree.map((f) => (
               <section key={f.id_formation} className="bloc">
                 <h2>{f.intitule} <span className={`etiquette ${f.statut_formation}`}>{f.statut_formation}</span></h2>
                 <p>{f.nb_sessions} session(s), {f.nb_modules_publies}/{f.nb_modules} module(s) publié(s)</p>
                 <div className="actions">
-                  <button type="button" onClick={() => ouvrir(f.id_formation)}>
-                    {ouverte === f.id_formation ? "Masquer les sessions" : "Sessions"}
-                  </button>
+                  <button type="button" onClick={() => ouvrir(f.id_formation)}>{ouverte === f.id_formation ? "Masquer les sessions" : "Sessions"}</button>
                   <button type="button" onClick={() => ouvrirModif(f)}>Modifier</button>
-                  {f.statut_formation === "brouillon" && (
-                    <button type="button" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/publier`, { method: "PATCH" }), "Formation publiée.")}>Publier</button>
-                  )}
-                  {f.statut_formation === "publiee" && (
-                    <button type="button" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/archiver`, { method: "PATCH" }), "Formation archivée.")}>Archiver</button>
-                  )}
-                  {f.statut_formation === "archivee" && (
-                    <button type="button" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/restaurer`, { method: "PATCH" }), "Formation restaurée en brouillon.")}>Restaurer</button>
-                  )}
-                  <button type="button" onClick={() => supprimerFormation(f)}>Supprimer</button>
+                  {f.statut_formation === "brouillon" && <button type="button" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/publier`, { method: "PATCH" }), "Formation publiée.")}>Publier</button>}
+                  {f.statut_formation === "publiee" && <button type="button" className="danger" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/archiver`, { method: "PATCH" }), "Formation archivée.")}>Archiver</button>}
+                  {f.statut_formation === "archivee" && <button type="button" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/restaurer`, { method: "PATCH" }), "Formation restaurée en brouillon.")}>Restaurer</button>}
+                  <button type="button" className="danger" onClick={() => supprimerFormation(f)}>Supprimer</button>
                 </div>
 
                 {ouverte === f.id_formation && (
@@ -217,9 +161,7 @@ export default function Formations() {
                                 {formateurs.map((x) => <option key={x.id_utilisateur} value={x.id_utilisateur}>{x.prenom} {x.nom}</option>)}
                               </select>
                             </td>
-                            <td>
-                              <button type="button" onClick={() => supprimerSession(s)}>Supprimer</button>
-                            </td>
+                            <td><button type="button" className="danger" onClick={() => supprimerSession(s)}>Supprimer</button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -239,24 +181,23 @@ export default function Formations() {
         </div>
       </div>
 
-      {/* MODALE */}
       {modif && (
-        <div className="fond-modal" onClick={(e) => e.target === e.currentTarget && setModif(null)}>
-          <div className="modal">
-            <div className="modal-entete">
+        <div className="lms-modal-overlay" onClick={(e) => e.target === e.currentTarget && setModif(null)}>
+          <div className="lms-modal-box">
+            <div className="lms-modal-header">
               <h2>Modifier la formation</h2>
               <button type="button" onClick={() => setModif(null)}>✕</button>
             </div>
             <form onSubmit={enregistrerModif}>
-              <div className="modal-corps">
+              <div className="lms-modal-body">
                 <label>Intitulé<input value={modif.intitule} onChange={(e) => setModif({ ...modif, intitule: e.target.value })} required /></label>
                 <label>Durée (heures)<input type="number" value={modif.duree} onChange={(e) => setModif({ ...modif, duree: e.target.value })} /></label>
                 <label>Description<input value={modif.description} onChange={(e) => setModif({ ...modif, description: e.target.value })} /></label>
                 <label>Public visé<input value={modif.publicVise} onChange={(e) => setModif({ ...modif, publicVise: e.target.value })} /></label>
               </div>
-              <div className="modal-pied">
-                <button type="button" className="btn secondaire" onClick={() => setModif(null)}>Annuler</button>
-                <button type="submit" className="btn">Enregistrer</button>
+              <div className="lms-modal-footer">
+                <button type="button" className="secondaire" onClick={() => setModif(null)}>Annuler</button>
+                <button type="submit">Enregistrer</button>
               </div>
             </form>
           </div>

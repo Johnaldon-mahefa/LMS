@@ -1,4 +1,4 @@
-// RG15 : chaque fonctionnalité est réservée aux rôles autorisés. Le contrôle est fait côté serveur.
+// RG15 : chaque fonctionnalité est réservée aux rôles autorisés.
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { AppError } from "../utils/AppError.js";
@@ -9,7 +9,12 @@ export function authenticate(req, _res, next) {
   if (!token) return next(new AppError(401, "Authentification requise."));
   try {
     const payload = jwt.verify(token, env.jwtSecret);
-    req.user = { id: Number(payload.sub), roles: payload.roles };
+    // On récupère l'id_etablissement depuis le token
+    req.user = { 
+      id: Number(payload.sub), 
+      roles: payload.roles,
+      id_etablissement: payload.id_etablissement // <-- NOUVEAU
+    };
     next();
   } catch {
     next(new AppError(401, "Session expirée ou invalide."));

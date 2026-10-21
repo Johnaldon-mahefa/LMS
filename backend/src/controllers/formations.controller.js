@@ -2,9 +2,10 @@
 import { ok, cree, sansContenu, id } from "../utils/http.js";
 import * as Service from "../services/formations.service.js";
 
-export const lister = ok(() => Service.lister());
+// On récupère l'id de l'école depuis le token
+export const lister = ok((req) => Service.lister(req.user.id_etablissement));
 export const detail = ok((req) => Service.detail(id(req)));
-export const creer = cree((req) => Service.creer(req.body));
+export const creer = cree((req) => Service.creer(req.user.id_etablissement, req.body));
 export const modifier = ok((req) => Service.modifier(id(req), req.body));
 export const publier = ok((req) => Service.publier(id(req)));
 export const archiver = ok((req) => Service.archiver(id(req)));
