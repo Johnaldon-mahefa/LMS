@@ -8,21 +8,34 @@ export function AuthProvider({ children }) {
   const [utilisateur, setUtilisateur] = useState(null);
   const [chargement, setChargement] = useState(true);
 
-  // Au rechargement de la page, on retrouve l'utilisateur à partir du jeton conservé.
   useEffect(() => {
     if (!getToken()) return setChargement(false);
     api("/auth/moi")
-      .then((u) => setUtilisateur({ id: u.id_utilisateur, nom: u.nom, prenom: u.prenom, roles: u.roles }))
+      .then((u) => setUtilisateur({ 
+        id: u.id_utilisateur, 
+        nom: u.nom, 
+        prenom: u.prenom, 
+        roles: u.roles,
+        id_etablissement: u.id_etablissement,
+        nom_etablissement: u.nom_etablissement
+      }))
       .catch(() => setToken(null))
       .finally(() => setChargement(false));
   }, []);
 
   async function connecter(identifiant, motDePasse) {
+    setToken(null);
+    setUtilisateur(null);
     const { token, utilisateur: u } = await api("/auth/login", { method: "POST", body: { identifiant, motDePasse } });
     setToken(token);
     setUtilisateur(u);
   }
-  function deconnecter() { setToken(null); setUtilisateur(null); }
+  
+  function deconnecter() { 
+    setToken(null); 
+    setUtilisateur(null); 
+    window.location.href = "/connexion"; 
+  }
 
   return <AuthContext.Provider value={{ utilisateur, chargement, connecter, deconnecter }}>{children}</AuthContext.Provider>;
 }

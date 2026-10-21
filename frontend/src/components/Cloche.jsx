@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client.js";
 
-const LIBELLES = {
-  module_publie: "📚",
-  note_disponible: "🎯",
-  inscription_validee: "✅",
-  inscription_refusee: "❌",
-  attestation: "🎉",
+// On remplace les emojis par des classes d'icônes Bootstrap
+const ICONES = {
+  module_publie: "bi-journal-bookmark",
+  note_disponible: "bi-bullseye",
+  inscription_validee: "bi-check-circle",
+  inscription_refusee: "bi-x-circle",
+  attestation: "bi-award",
 };
 
 export default function Cloche() {
@@ -34,7 +35,7 @@ export default function Cloche() {
 
   useEffect(() => {
     chargerCompteur();
-    const minuteur = setInterval(chargerCompteur, 30000); // toutes les 30 sec
+    const minuteur = setInterval(chargerCompteur, 30000);
     return () => clearInterval(minuteur);
   }, []);
 
@@ -42,7 +43,6 @@ export default function Cloche() {
     if (ouvert) charger();
   }, [ouvert]);
 
-  // Fermer au clic extérieur
   useEffect(() => {
     function fermer(e) {
       if (boite.current && !boite.current.contains(e.target)) setOuvert(false);
@@ -52,11 +52,9 @@ export default function Cloche() {
   }, []);
 
   async function cliquer(n) {
-    // Marquer comme lue
     if (!n.lu) {
       try { await api(`/notifications/${n.id_notification}/lue`, { method: "PATCH" }); } catch (e) {}
     }
-    // Rediriger
     if (n.lien) {
       setOuvert(false);
       navigate(n.lien);
@@ -81,51 +79,63 @@ export default function Cloche() {
   }
 
   return (
-    <div className="cloche" ref={boite}>
+    <div className="position-relative" ref={boite}>
       <button
         type="button"
-        className="cloche-bouton"
+        className="btn btn-light position-relative"
         onClick={() => setOuvert((v) => !v)}
         aria-label={`Notifications${compteur > 0 ? ` (${compteur})` : ""}`}
       >
-        <span className="cloche-icone">🔔</span>
-        {compteur > 0 && <span className="cloche-badge">{compteur > 9 ? "9+" : compteur}</span>}
+        <i className="bi bi-bell fs-5"></i>
+        {compteur > 0 && (
+          <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+            {compteur > 9 ? "9+" : compteur}
+          </span>
+        )}
       </button>
 
       {ouvert && (
-        <div className="cloche-panneau">
-          <div className="cloche-entete">
-            <strong>Notifications</strong>
+        <div 
+          className="position-absolute end-0 mt-2 bg-white border rounded shadow-sm" 
+          style={{ width: '350px', zIndex: 1050 }}
+        >
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom bg-light rounded-top">
+            <strong className="mb-0">Notifications</strong>
             {notifs.some((n) => !n.lu) && (
-              <button type="button" onClick={toutMarquerLu}>Tout marquer comme lu</button>
+              <button type="button" className="btn btn-link btn-sm text-decoration-none p-0" onClick={toutMarquerLu}>
+                Tout marquer comme lu
+              </button>
             )}
           </div>
 
-          <div className="cloche-liste">
+          <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
             {notifs.length === 0 ? (
-              <p className="cloche-vide">Aucune notification pour le moment.</p>
+              <p className="text-muted text-center p-4 mb-0">Aucune notification pour le moment.</p>
             ) : (
               notifs.map((n) => (
                 <div
                   key={n.id_notification}
-                  className={`cloche-item ${n.lu ? "" : "non-lue"}`}
+                  className={`d-flex align-items-start p-3 border-bottom position-relative ${n.lu ? '' : 'bg-primary bg-opacity-10'}`}
                   onClick={() => cliquer(n)}
                   role="button"
                   tabIndex={0}
+                  style={{ cursor: 'pointer' }}
                 >
-                  <span className="cloche-item-icone">{LIBELLES[n.type] || "🔔"}</span>
-                  <div className="cloche-item-texte">
-                    <strong>{n.titre}</strong>
-                    <span>{n.message}</span>
-                    <small>{n.date_creation}</small>
+                  <div className="me-3 text-primary fs-5">
+                    <i className={`bi ${ICONES[n.type] || 'bi-bell'}`}></i>
+                  </div>
+                  <div className="flex-grow-1 pe-2">
+                    <div className="fw-bold small">{n.titre}</div>
+                    <div className="small text-dark">{n.message}</div>
+                    <div className="text-muted" style={{ fontSize: '11px' }}>{n.date_creation}</div>
                   </div>
                   <button
                     type="button"
-                    className="cloche-item-suppr"
+                    className="btn btn-link text-muted p-0 ms-2 text-decoration-none"
                     onClick={(e) => supprimer(e, n.id_notification)}
                     title="Supprimer"
                   >
-                    ✕
+                    <i className="bi bi-x-lg"></i>
                   </button>
                 </div>
               ))

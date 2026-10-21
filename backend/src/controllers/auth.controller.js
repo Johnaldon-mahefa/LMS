@@ -1,12 +1,9 @@
-// Contrôleur (GRASP) : reçoit la requête HTTP, délègue au service, renvoie la réponse. Aucune règle métier ici.
-import { asyncHandler } from "../utils/asyncHandler.js";
-import * as AuthService from "../services/auth.service.js";
+import { ok, cree } from "../utils/http.js";
+import * as Service from "../services/auth.service.js";
 
-export const login = asyncHandler(async (req, res) => {
-  const { identifiant, motDePasse } = req.body;
-  res.json(await AuthService.authentifier(identifiant, motDePasse));
-});
+export const login = ok((req) => Service.authentifier(req.body.identifiant, req.body.motDePasse));
 
-export const moi = asyncHandler(async (req, res) => {
-  res.json(await AuthService.profil(req.user.id));
-});
+export const moi = ok((req) => Service.profil(req.user.id));
+
+// NOUVEAU : Contrôleur pour créer un espace
+export const inscrireEtablissement = cree((req) => Service.creerEspace(req.body));

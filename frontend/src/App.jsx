@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Login from "./pages/Login.jsx";
+import CreerEspace from "./pages/CreerEspace.jsx"; // <-- NOUVEL IMPORT
 import Accueil from "./pages/Accueil.jsx";
 import Statistiques from "./pages/Statistiques.jsx";
 import Utilisateurs from "./pages/Utilisateurs.jsx";
@@ -24,7 +25,11 @@ const page = (roles, element) => <ProtectedRoute roles={roles}>{element}</Protec
 export default function App() {
   return (
     <Routes>
+      {/* --- ROUTES PUBLIQUES --- */}
       <Route path="/connexion" element={<Login />} />
+      <Route path="/creer-espace" element={<CreerEspace />} /> {/* <-- NOUVELLE ROUTE */}
+      
+      {/* --- ROUTES PROTÉGÉES (Layout) --- */}
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Accueil />} />
         <Route path="/profil" element={<Profil />} />

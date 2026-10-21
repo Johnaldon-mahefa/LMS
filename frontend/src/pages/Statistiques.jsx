@@ -1,173 +1,171 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
 import { useToast } from "../context/ToastContext.jsx";
-import Loading from "../components/Loading.jsx";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
+import { Doughnut, Bar } from 'react-chartjs-2';
 
-/* Petite barre horizontale animée */
-function Barre({ valeur, total, couleur = "" }) {
-  const pourcent = total > 0 ? (valeur / total) * 100 : 0;
-  const [largeur, setLargeur] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => setLargeur(pourcent), 80);
-    return () => clearTimeout(t);
-  }, [pourcent]);
-  return (
-    <div className="stat-barre">
-      <div className={`stat-barre-remplie ${couleur}`} style={{ width: `${largeur}%` }} />
-    </div>
-  );
-}
-
-/* Carte de statistique simple */
-function CarteStat({ valeur, libelle, icone, teinte = "" }) {
-  return (
-    <div className={`stat-bloc ${teinte}`}>
-      <div className="stat-bloc-icone">{icone}</div>
-      <div>
-        <div className="stat-bloc-valeur">{valeur}</div>
-        <div className="stat-bloc-libelle">{libelle}</div>
-      </div>
-    </div>
-  );
-}
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 export default function Statistiques() {
   const toast = useToast();
   const [stats, setStats] = useState(null);
-  const [chargement, setChargement] = useState(true);
 
   useEffect(() => {
-    api("/admin/statistiques")
-      .then((data) => { setStats(data); setChargement(false); })
-      .catch((e) => { toast.erreur(e.message); setChargement(false); });
+    api("/admin/statistiques").then(setStats).catch((e) => toast.erreur(e.message));
   }, []);
 
-  if (chargement) return <Loading texte="Chargement des statistiques…" />;
-  if (!stats) return <div className="carte">Impossible de charger les statistiques.</div>;
+  if (!stats) return <div className="p-5 text-center text-muted">Chargement des statistiques...</div>;
 
-  const { utilisateurs, formations, inscriptions, modules, soumissions, attestations, parRole } = stats;
+  // Données pour le camembert (Utilisateurs)
+  const dataUsers = {
+    labels: ['Actifs', 'Désactivés'],
+    datasets: [{
+      data: [stats.utilisateurs.actifs, stats.utilisateurs.desactives],
+      backgroundColor: ['#0d6efd', '#dc3545'],
+      borderWidth: 0,
+    }],
+  };
 
-  const rolesData = [
-    { nom: "Administrateur", valeur: parRole.find((r) => r.role === "administrateur")?.nombre || 0, couleur: "bleu" },
-    { nom: "Formateur", valeur: parRole.find((r) => r.role === "formateur")?.nombre || 0, couleur: "violet" },
-    { nom: "Apprenant", valeur: parRole.find((r) => r.role === "apprenant")?.nombre || 0, couleur: "rose" },
-  ];
-  const totalRoles = rolesData.reduce((a, r) => a + r.valeur, 0);
+  // Données pour le graphique en barres (Formations)
+  const dataFormations = {
+    labels: ['Brouillon', 'Publiées', 'Archivées'],
+    datasets: [{
+      label: 'Nombre de formations',
+      data: [stats.formations.brouillons, stats.formations.publiees, stats.formations.archivees],
+      backgroundColor: ['#ffc107', '#198754', '#6c757d'],
+      borderRadius: 4,
+    }],
+  };
 
   return (
-    <>
-      <h1 style={{ marginBottom: 20 }}>Statistiques de la plateforme</h1>
+    <div className="container-fluid py-4">
+      <h1 className="h3 fw-bold mb-4">Tableau de bord</h1>
 
-      <section className="stats-section">
-        {/* Cartes principales */}
-        <div className="stats-cartes">
-          <CarteStat valeur={utilisateurs.total} libelle="Utilisateurs" icone="👥" teinte="violet" />
-          <CarteStat valeur={formations.total} libelle="Formations" icone="📚" teinte="bleu" />
-          <CarteStat valeur={inscriptions.total} libelle="Inscriptions" icone="📝" teinte="rose" />
-          <CarteStat valeur={modules.publies} libelle="Modules publiés" icone="📦" teinte="vert" />
-          <CarteStat valeur={soumissions.a_corriger} libelle="Travaux à corriger" icone="✏️" teinte="orange" />
-          <CarteStat valeur={attestations.total} libelle="Attestations" icone="🎓" teinte="violet" />
-        </div>
-
-        {/* Bloc : répartition par rôle */}
-        <div className="stats-bloc-detail">
-          <h3>Répartition des utilisateurs par rôle</h3>
-          <div className="stats-barres">
-            {rolesData.map((r) => (
-              <div key={r.nom} className="stats-barre-ligne">
-                <span className="stats-barre-libelle">{r.nom}</span>
-                <Barre valeur={r.valeur} total={totalRoles} couleur={r.couleur} />
-                <span className="stats-barre-valeur">{r.valeur}</span>
+      {/* --- LIGNE 1 : LES CARTES DE CHIFFRES --- */}
+      <div className="row g-3 mb-4">
+        <div className="col-12 col-sm-6 col-xl-3">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body d-flex align-items-center">
+              <div className="bg-primary bg-opacity-10 p-3 rounded me-3">
+                <i className="bi bi-people-fill text-primary fs-4"></i>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Bloc : formations par statut + inscriptions par statut */}
-        <div className="stats-grille-2">
-          <div className="stats-bloc-detail">
-            <h3>Formations par statut</h3>
-            <div className="stats-barres">
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">Brouillons</span>
-                <Barre valeur={formations.brouillons} total={formations.total} couleur="orange" />
-                <span className="stats-barre-valeur">{formations.brouillons}</span>
-              </div>
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">Publiées</span>
-                <Barre valeur={formations.publiees} total={formations.total} couleur="vert" />
-                <span className="stats-barre-valeur">{formations.publiees}</span>
-              </div>
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">Archivées</span>
-                <Barre valeur={formations.archivees} total={formations.total} couleur="gris" />
-                <span className="stats-barre-valeur">{formations.archivees}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="stats-bloc-detail">
-            <h3>Inscriptions par statut</h3>
-            <div className="stats-barres">
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">En attente</span>
-                <Barre valeur={inscriptions.en_attente} total={inscriptions.total} couleur="orange" />
-                <span className="stats-barre-valeur">{inscriptions.en_attente}</span>
-              </div>
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">Validées</span>
-                <Barre valeur={inscriptions.validees} total={inscriptions.total} couleur="vert" />
-                <span className="stats-barre-valeur">{inscriptions.validees}</span>
-              </div>
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">Refusées</span>
-                <Barre valeur={inscriptions.refusees} total={inscriptions.total} couleur="rouge" />
-                <span className="stats-barre-valeur">{inscriptions.refusees}</span>
-              </div>
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">Annulées</span>
-                <Barre valeur={inscriptions.annulees} total={inscriptions.total} couleur="gris" />
-                <span className="stats-barre-valeur">{inscriptions.annulees}</span>
+              <div>
+                <h6 className="text-muted mb-1 fw-normal">Utilisateurs</h6>
+                <h3 className="mb-0 fw-bold">{stats.utilisateurs.total}</h3>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bloc : modules + soumissions */}
-        <div className="stats-grille-2">
-          <div className="stats-bloc-detail">
-            <h3>Modules</h3>
-            <div className="stats-barres">
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">Publiés</span>
-                <Barre valeur={modules.publies} total={modules.total} couleur="vert" />
-                <span className="stats-barre-valeur">{modules.publies}</span>
+        <div className="col-12 col-sm-6 col-xl-3">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body d-flex align-items-center">
+              <div className="bg-success bg-opacity-10 p-3 rounded me-3">
+                <i className="bi bi-journal-bookmark-fill text-success fs-4"></i>
               </div>
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">Brouillons</span>
-                <Barre valeur={modules.brouillons} total={modules.total} couleur="orange" />
-                <span className="stats-barre-valeur">{modules.brouillons}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="stats-bloc-detail">
-            <h3>Soumissions</h3>
-            <div className="stats-barres">
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">Corrigées</span>
-                <Barre valeur={soumissions.corrigees} total={soumissions.total} couleur="vert" />
-                <span className="stats-barre-valeur">{soumissions.corrigees}</span>
-              </div>
-              <div className="stats-barre-ligne">
-                <span className="stats-barre-libelle">À corriger</span>
-                <Barre valeur={soumissions.a_corriger} total={soumissions.total} couleur="orange" />
-                <span className="stats-barre-valeur">{soumissions.a_corriger}</span>
+              <div>
+                <h6 className="text-muted mb-1 fw-normal">Formations</h6>
+                <h3 className="mb-0 fw-bold">{stats.formations.total}</h3>
               </div>
             </div>
           </div>
         </div>
-      </section>
-    </>
+
+        <div className="col-12 col-sm-6 col-xl-3">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body d-flex align-items-center">
+              <div className="bg-warning bg-opacity-10 p-3 rounded me-3">
+                <i className="bi bi-person-plus-fill text-warning fs-4"></i>
+              </div>
+              <div>
+                <h6 className="text-muted mb-1 fw-normal">Inscriptions</h6>
+                <h3 className="mb-0 fw-bold">{stats.inscriptions.total}</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-12 col-sm-6 col-xl-3">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body d-flex align-items-center">
+              <div className="bg-info bg-opacity-10 p-3 rounded me-3">
+                <i className="bi bi-award-fill text-info fs-4"></i>
+              </div>
+              <div>
+                <h6 className="text-muted mb-1 fw-normal">Attestations</h6>
+                <h3 className="mb-0 fw-bold">{stats.attestations.total}</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* --- LIGNE 2 : LES GRAPHIQUES --- */}
+      <div className="row g-4 mb-4">
+        <div className="col-12 col-lg-6">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body">
+              <h5 className="card-title fw-bold mb-4">Statut des utilisateurs</h5>
+              <div style={{ height: '300px', position: 'relative' }}>
+                <Doughnut data={dataUsers} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-12 col-lg-6">
+          <div className="card shadow-sm border-0 h-100">
+            <div className="card-body">
+              <h5 className="card-title fw-bold mb-4">Répartition des formations</h5>
+              <div style={{ height: '300px', position: 'relative' }}>
+                <Bar data={dataFormations} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* --- LIGNE 3 : TABLEAU DES FORMATIONS POPULAIRES --- */}
+      <div className="row">
+        <div className="col-12">
+          <div className="card shadow-sm border-0">
+            <div className="card-body">
+              <h5 className="card-title fw-bold mb-3">Top 5 des formations les plus suivies</h5>
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Nom de la formation</th>
+                      <th>Statut</th>
+                      <th>Nombre d'inscrits</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.formationsPopulaires.length === 0 ? (
+                      <tr>
+                        <td colSpan="3" className="text-center text-muted py-4">Aucune formation pour le moment.</td>
+                      </tr>
+                    ) : (
+                      stats.formationsPopulaires.map((f, index) => (
+                        <tr key={index}>
+                          <td className="fw-bold">{f.intitule}</td>
+                          <td>
+                            <span className={`badge bg-${f.statut_formation === 'publiee' ? 'success' : f.statut_formation === 'brouillon' ? 'warning' : 'secondary'}`}>
+                              {f.statut_formation}
+                            </span>
+                          </td>
+                          <td>{f.nb_inscrits} inscrit(s)</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
   );
-}
+} 

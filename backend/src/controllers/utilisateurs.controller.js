@@ -1,9 +1,13 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import * as UtilisateursService from "../services/utilisateurs.service.js";
 
-export const lister = asyncHandler(async (_req, res) => res.json(await UtilisateursService.lister()));
+export const lister = asyncHandler(async (req, res) => 
+  res.json(await UtilisateursService.lister(req.user.id_etablissement))
+);
 
-export const creer = asyncHandler(async (req, res) => res.status(201).json(await UtilisateursService.creer(req.body)));
+export const creer = asyncHandler(async (req, res) => 
+  res.status(201).json(await UtilisateursService.creer(req.user.id_etablissement, req.body))
+);
 
 export const modifier = asyncHandler(async (req, res) =>
   res.json(await UtilisateursService.modifier(Number(req.params.id), req.body)));

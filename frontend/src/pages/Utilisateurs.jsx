@@ -54,7 +54,6 @@ export default function Utilisateurs() {
     });
   }, [liste, filtre, recherche]);
 
-  // Liste enrichie pour l'export (texte propre)
   const listeExport = useMemo(() =>
     listeFiltree.map((u) => ({
       ...u,
@@ -64,7 +63,6 @@ export default function Utilisateurs() {
 
   const compte = (statut) => liste.filter((u) => u.statut_compte === statut).length;
 
-  /* ---------- Export ---------- */
   function exporterEnCSV() {
     exporterCSV(listeExport, COLONNES, "utilisateurs");
     toast.ok(`Export CSV de ${listeExport.length} utilisateur(s).`);
@@ -74,7 +72,6 @@ export default function Utilisateurs() {
     toast.ok(`Export PDF de ${listeExport.length} utilisateur(s).`);
   }
 
-  /* ---------- Création ---------- */
   function basculerRole(role) {
     setForm((f) => ({
       ...f,
@@ -149,7 +146,6 @@ export default function Utilisateurs() {
       <h1 style={{ marginBottom: 20 }}>Gérer les utilisateurs</h1>
 
       <div className="page-split">
-        {/* COLONNE GAUCHE */}
         <div className="colonne gauche">
           <h2>Nouveau compte</h2>
           <form onSubmit={creer} className="grille">
@@ -166,31 +162,19 @@ export default function Utilisateurs() {
           </form>
         </div>
 
-        {/* COLONNE DROITE */}
         <div className="colonne droite">
           <div className="filtres-haut">
-            <button type="button" onClick={() => setFiltre("tous")} className={filtre === "tous" ? "actif" : ""}>
-              Tous ({liste.length})
-            </button>
-            <button type="button" onClick={() => setFiltre("actif")} className={filtre === "actif" ? "actif" : ""}>
-              Actifs ({compte("actif")})
-            </button>
-            <button type="button" onClick={() => setFiltre("desactive")} className={filtre === "desactive" ? "actif" : ""}>
-              Désactivés ({compte("desactive")})
-            </button>
-            <input
-              type="search"
-              placeholder="Rechercher par nom, prénom ou identifiant…"
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-            />
+            <button type="button" onClick={() => setFiltre("tous")} className={filtre === "tous" ? "actif" : ""}>Tous ({liste.length})</button>
+            <button type="button" onClick={() => setFiltre("actif")} className={filtre === "actif" ? "actif" : ""}>Actifs ({compte("actif")})</button>
+            <button type="button" onClick={() => setFiltre("desactive")} className={filtre === "desactive" ? "actif" : ""}>Désactivés ({compte("desactive")})</button>
+            <input type="search" placeholder="Rechercher…" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
             <h2 style={{ margin: 0, border: 0, padding: 0 }}>Liste des utilisateurs ({listeFiltree.length})</h2>
             <div className="actions" style={{ margin: 0 }}>
-              <button type="button" onClick={exporterEnCSV} title="Télécharger en CSV">📥 CSV</button>
-              <button type="button" onClick={exporterEnPDF} title="Télécharger en PDF">📄 PDF</button>
+              <button type="button" onClick={exporterEnCSV} title="Télécharger en CSV">CSV</button>
+              <button type="button" onClick={exporterEnPDF} title="Télécharger en PDF">PDF</button>
             </div>
           </div>
 
@@ -199,39 +183,25 @@ export default function Utilisateurs() {
           ) : (
             <table>
               <thead>
-                <tr>
-                  <th>Nom</th>
-                  <th>Identifiant</th>
-                  <th>Rôles</th>
-                  <th>Statut</th>
-                  <th>Actions</th>
-                </tr>
+                <tr><th>Nom</th><th>Identifiant</th><th>Rôles</th><th>Statut</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {listeFiltree.length === 0 && (
-                  <tr>
-                    <td colSpan="5" style={{ textAlign: "center", padding: 20, color: "#6b6485" }}>
-                      Aucun utilisateur trouvé.
-                    </td>
-                  </tr>
+                  <tr><td colSpan="5" style={{ textAlign: "center", padding: 20, color: "#6b6485" }}>Aucun utilisateur trouvé.</td></tr>
                 )}
                 {listeFiltree.map((u) => (
                   <tr key={u.id_utilisateur}>
                     <td>{u.prenom} {u.nom}</td>
                     <td>{u.identifiant}</td>
                     <td>{u.roles.join(", ")}</td>
-                    <td>
-                      <span className={`etiquette ${u.statut_compte}`}>
-                        {u.statut_compte === "desactive" ? "désactivé" : u.statut_compte}
-                      </span>
-                    </td>
+                    <td><span className={`etiquette ${u.statut_compte}`}>{u.statut_compte === "desactive" ? "désactivé" : u.statut_compte}</span></td>
                     <td>
                       <div className="actions-btns">
                         <button type="button" onClick={() => ouvrirModif(u)}>Modifier</button>
                         <button type="button" onClick={() => ouvrirMdp(u)}>Mot de passe</button>
                         {u.id_utilisateur !== moi.id && (
                           u.statut_compte === "actif"
-                            ? <button type="button" onClick={() => desactiver(u)}>Désactiver</button>
+                            ? <button type="button" className="danger" onClick={() => desactiver(u)}>Désactiver</button>
                             : <button type="button" onClick={() => reactiver(u)}>Réactiver</button>
                         )}
                       </div>
@@ -244,16 +214,16 @@ export default function Utilisateurs() {
         </div>
       </div>
 
-      {/* MODALES */}
+      {/* MODALE MODIFIER */}
       {modif && (
-        <div className="fond-modal" onClick={(e) => e.target === e.currentTarget && setModif(null)}>
-          <div className="modal">
-            <div className="modal-entete">
+        <div className="lms-modal-overlay" onClick={(e) => e.target === e.currentTarget && setModif(null)}>
+          <div className="lms-modal-box">
+            <div className="lms-modal-header">
               <h2>Modifier {modif.prenom} {modif.nom}</h2>
               <button type="button" onClick={() => setModif(null)}>✕</button>
             </div>
             <form onSubmit={enregistrerModif}>
-              <div className="modal-corps">
+              <div className="lms-modal-body">
                 <label>Nom<input value={modif.nom} onChange={(e) => setModif({ ...modif, nom: e.target.value })} required /></label>
                 <label>Prénom<input value={modif.prenom} onChange={(e) => setModif({ ...modif, prenom: e.target.value })} required /></label>
                 <fieldset><legend>Rôles</legend>
@@ -262,41 +232,33 @@ export default function Utilisateurs() {
                   ))}
                 </fieldset>
               </div>
-              <div className="modal-pied">
-                <button type="button" className="btn secondaire" onClick={() => setModif(null)}>Annuler</button>
-                <button type="submit" className="btn">Enregistrer</button>
+              <div className="lms-modal-footer">
+                <button type="button" className="secondaire" onClick={() => setModif(null)}>Annuler</button>
+                <button type="submit">Enregistrer</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* MODALE MOT DE PASSE */}
       {mdp && (
-        <div className="fond-modal" onClick={(e) => e.target === e.currentTarget && setMdp(null)}>
-          <div className="modal">
-            <div className="modal-entete">
+        <div className="lms-modal-overlay" onClick={(e) => e.target === e.currentTarget && setMdp(null)}>
+          <div className="lms-modal-box">
+            <div className="lms-modal-header">
               <h2>Réinitialiser le mot de passe</h2>
               <button type="button" onClick={() => setMdp(null)}>✕</button>
             </div>
             <form onSubmit={enregistrerMdp}>
-              <div className="modal-corps">
-                <p style={{ marginBottom: 12, color: "#6b6485" }}>
-                  Nouveau mot de passe pour <strong>{mdp.prenom} {mdp.nom}</strong>. Minimum 8 caractères.
-                </p>
+              <div className="lms-modal-body">
+                <p style={{ marginBottom: 12, color: "#6b6485" }}>Nouveau mot de passe pour <strong>{mdp.prenom} {mdp.nom}</strong>.</p>
                 <label>Nouveau mot de passe
-                  <input
-                    type="text"
-                    value={mdp.motDePasse}
-                    onChange={(e) => setMdp({ ...mdp, motDePasse: e.target.value })}
-                    minLength={8}
-                    required
-                    autoFocus
-                  />
+                  <input type="text" value={mdp.motDePasse} onChange={(e) => setMdp({ ...mdp, motDePasse: e.target.value })} minLength={8} required autoFocus />
                 </label>
               </div>
-              <div className="modal-pied">
-                <button type="button" className="btn secondaire" onClick={() => setMdp(null)}>Annuler</button>
-                <button type="submit" className="btn">Réinitialiser</button>
+              <div className="lms-modal-footer">
+                <button type="button" className="secondaire" onClick={() => setMdp(null)}>Annuler</button>
+                <button type="submit">Réinitialiser</button>
               </div>
             </form>
           </div>

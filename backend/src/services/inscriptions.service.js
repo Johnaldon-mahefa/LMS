@@ -1,6 +1,6 @@
-// Service : « Gérer les inscriptions » (administrateur) et « Demander son inscription à une session » (apprenant).
+// Service : « Gérer les inscriptions ».
 import * as Notifications from "./notifications.service.js";
-import { withTransaction } from "../config/db.js";
+import { withTransaction, query } from "../config/db.js"; // <-- Ajout de query
 import { AppError } from "../utils/AppError.js";
 import * as Inscription from "../models/inscription.model.js";
 import * as Session from "../models/session.model.js";
@@ -16,7 +16,31 @@ async function chargerInscription(id, client) {
 }
 
 /* ----- Administrateur ----- */
-export const lister = () => Inscription.findAll();
+// MULTI-TENANT : On filtre les inscriptions par établissement et on calcule les places
+export const lister = async (idEtablissement) => {
+  const { rows } = await query(`
+    SELECT 
+      i.*, 
+      s.date_debut, 
+      s.date_fin, 
+      s.capacite_max,
+      (s.capacite_max - (
+        SELECT COUNT(*)::int 
+        FROM inscription i2 
+        WHERE i2.id_session = s.id_session AND i2.statut_inscription = 'validee'
+      )) AS places_restantes,
+      u.nom, 
+      u.prenom, 
+      f.intitule AS formation
+    FROM inscription i
+    JOIN session s ON i.id_session = s.id_session
+    JOIN formation f ON s.id_formation = f.id_formation
+    JOIN utilisateur u ON i.id_utilisateur = u.id_utilisateur
+    WHERE f.id_etablissement = $1
+    ORDER BY i.date_inscription DESC
+  `, [idEtablissement]);
+  return rows;
+};
 
 export async function valider(id) {
   await withTransaction(async (client) => {
@@ -32,7 +56,6 @@ export async function valider(id) {
 
   const inscription = await Inscription.findById(id);
 
-  // Email de confirmation
   if (inscription.id_apprenant) {
     const u = await Utilisateur.findById(inscription.id_apprenant);
     if (u && u.identifiant.includes("@")) {
@@ -40,7 +63,7 @@ export async function valider(id) {
         prenom: u.prenom, formation: inscription.formation, dateDebut: inscription.date_debut,
         urlPlateforme: `${process.env.FRONTEND_URL || "http://localhost:5173"}/mes-formations`,
       });
-            Mailer.envoyer({ to: u.identifiant, subject: tpl.subject, html: tpl.html, text: tpl.text }).catch(() => {});
+      Mailer.envoyer({ to: u.identifiant, subject: tpl.subject, html: tpl.html, text: tpl.text }).catch(() => {});
     }
 
     if (u) {
@@ -67,12 +90,11 @@ export async function refuser(id) {
 
   const inscription = await Inscription.findById(id);
 
-  // Email de refus
   if (inscription.id_apprenant) {
     const u = await Utilisateur.findById(inscription.id_apprenant);
     if (u && u.identifiant.includes("@")) {
       const tpl = emailInscriptionRefusee({ prenom: u.prenom, formation: inscription.formation });
-            Mailer.envoyer({ to: u.identifiant, subject: tpl.subject, html: tpl.html, text: tpl.text }).catch(() => {});
+      Mailer.envoyer({ to: u.identifiant, subject: tpl.subject, html: tpl.html, text: tpl.text }).catch(() => {});
     }
 
     if (u) {
@@ -88,6 +110,7 @@ export async function refuser(id) {
 
   return inscription;
 }
+
 export async function annuler(id) {
   await withTransaction(async (client) => {
     const inscription = await chargerInscription(id, client);
@@ -114,7 +137,6 @@ export async function inscrireDirectement(idApprenant, idSession) {
 
   const inscription = await Inscription.findById(id);
 
-  // Email de confirmation
   if (apprenant.identifiant.includes("@")) {
     const tpl = emailInscriptionValidee({
       prenom: apprenant.prenom, formation: inscription.formation, dateDebut: inscription.date_debut,
@@ -136,9 +158,19 @@ async function controlerSessionOuverte(idSession) {
   return session;
 }
 
-export async function catalogue() {
-  const formations = await Formation.findPubliees();
-  for (const f of formations) f.sessions = await Session.findByFormation(f.id_formation);
+// MULTI-TENANT : Le catalogue ne montre que les formations de l'école
+export async function catalogue(idEtablissement) {
+  const { rows: formations } = await query(`
+    SELECT f.*, 
+           (SELECT COUNT(*) FROM session s WHERE s.id_formation = f.id_formation)::int AS nb_sessions
+    FROM formation f 
+    WHERE f.statut_formation = 'publiee' AND f.id_etablissement = $1
+  `, [idEtablissement]);
+  
+  for (const f of formations) {
+    const { rows: sessions } = await query("SELECT * FROM session WHERE id_formation = $1", [f.id_formation]);
+    f.sessions = sessions;
+  }
   return formations;
 }
 
