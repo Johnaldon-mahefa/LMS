@@ -34,10 +34,19 @@ export default function Inscriptions() {
     api("/utilisateurs").then((u) =>
       setApprenants(u.filter((x) => x.roles.includes("apprenant") && x.statut_compte === "actif"))
     );
+    
+    // CORRECTION ICI : On ajoute le nom de la formation à chaque session
     api("/admin/formations").then(async (fs) => {
       const toutes = [];
-      for (const f of fs.filter((x) => x.statut_formation === "publiee"))
-        toutes.push(...(await api(`/admin/formations/${f.id_formation}`)).sessions);
+      for (const f of fs.filter((x) => x.statut_formation === "publiee")) {
+        const detail = await api(`/admin/formations/${f.id_formation}`);
+        detail.sessions.forEach((s) => {
+          toutes.push({ 
+            ...s, 
+            formation: f.intitule // <-- On ajoute le nom de la formation ici
+          });
+        });
+      }
       setSessions(toutes);
     });
   }, []);
@@ -129,7 +138,8 @@ export default function Inscriptions() {
                 <option value="">Choisir…</option>
                 {sessions.map((s) => (
                   <option key={s.id_session} value={s.id_session}>
-                    {s.formation} ({s.date_debut})
+                    {/* AFFICHAGE CORRIGÉ : Formation + Date */}
+                    {s.formation} (Début: {new Date(s.date_debut).toLocaleDateString('fr-FR')})
                   </option>
                 ))}
               </select>
@@ -192,7 +202,7 @@ export default function Inscriptions() {
                   <tr key={i.id_inscription}>
                     <td>{i.prenom} {i.nom}</td>
                     <td>{i.formation}</td>
-                    <td>{i.date_debut}</td>
+                    <td>{new Date(i.date_debut).toLocaleDateString('fr-FR')}</td>
                     <td>{i.places_restantes} / {i.capacite_max}</td>
                     <td>
                       <span className={`etiquette ${i.statut_inscription}`}>

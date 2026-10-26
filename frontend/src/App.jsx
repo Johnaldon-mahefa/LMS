@@ -19,6 +19,8 @@ import { MesFormations, ContenuFormation } from "./pages/MesFormations.jsx";
 import Resultats from "./pages/Resultats.jsx";
 import QcmEditor from "./pages/QcmEditor.jsx";
 import QcmPasser from "./pages/QcmPasser.jsx";
+import Formateurs from "./pages/Formateurs.jsx";
+import MonAbonnement from "./pages/MonAbonnement.jsx";
 
 const page = (roles, element) => <ProtectedRoute roles={roles}>{element}</ProtectedRoute>;
 
@@ -39,7 +41,8 @@ export default function App() {
         <Route path="/utilisateurs" element={page(["administrateur"], <Utilisateurs />)} />
         <Route path="/formations" element={page(["administrateur"], <Formations />)} />
         <Route path="/inscriptions" element={page(["administrateur"], <Inscriptions />)} />
-
+        <Route path="/formateurs" element={page(["administrateur"], <Formateurs />)} />
+        <Route path="/mon-abonnement" element={page(["administrateur"], <MonAbonnement />)} />
         {/* Formateur */}
         <Route path="/contenu" element={page(["formateur"], <Contenu />)} />
         <Route path="/contenu/:id" element={page(["formateur"], <Module />)} />

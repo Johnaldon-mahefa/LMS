@@ -173,8 +173,8 @@ export default function Utilisateurs() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
             <h2 style={{ margin: 0, border: 0, padding: 0 }}>Liste des utilisateurs ({listeFiltree.length})</h2>
             <div className="actions" style={{ margin: 0 }}>
-              <button type="button" onClick={exporterEnCSV} title="Télécharger en CSV">CSV</button>
-              <button type="button" onClick={exporterEnPDF} title="Télécharger en PDF">PDF</button>
+              <button type="button" onClick={exporterEnCSV} title="Télécharger en CSV"><i className="bi bi-file-earmark-spreadsheet me-1"></i> CSV</button>
+              <button type="button" onClick={exporterEnPDF} title="Télécharger en PDF"><i className="bi bi-file-earmark-pdf me-1"></i> PDF</button>
             </div>
           </div>
 
@@ -196,13 +196,21 @@ export default function Utilisateurs() {
                     <td>{u.roles.join(", ")}</td>
                     <td><span className={`etiquette ${u.statut_compte}`}>{u.statut_compte === "desactive" ? "désactivé" : u.statut_compte}</span></td>
                     <td>
-                      <div className="actions-btns">
-                        <button type="button" onClick={() => ouvrirModif(u)}>Modifier</button>
-                        <button type="button" onClick={() => ouvrirMdp(u)}>Mot de passe</button>
+                      <div className="d-flex gap-2 justify-content-end">
+                        <button type="button" className="btn btn-sm btn-primary" onClick={() => ouvrirModif(u)} title="Modifier cet utilisateur">
+                          <i className="bi bi-pencil me-1"></i> Modifier
+                        </button>
+                        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => ouvrirMdp(u)} title="Réinitialiser le mot de passe">
+                          <i className="bi bi-key me-1"></i> Mot de passe
+                        </button>
                         {u.id_utilisateur !== moi.id && (
                           u.statut_compte === "actif"
-                            ? <button type="button" className="danger" onClick={() => desactiver(u)}>Désactiver</button>
-                            : <button type="button" onClick={() => reactiver(u)}>Réactiver</button>
+                            ? <button type="button" className="btn btn-sm btn-danger" onClick={() => desactiver(u)} title="Désactiver le compte">
+                                <i className="bi bi-person-x me-1"></i> Désactiver
+                              </button>
+                            : <button type="button" className="btn btn-sm btn-success" onClick={() => reactiver(u)} title="Réactiver le compte">
+                                <i className="bi bi-person-check me-1"></i> Réactiver
+                              </button>
                         )}
                       </div>
                     </td>

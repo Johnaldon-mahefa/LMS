@@ -25,3 +25,8 @@ export const reinitialiserMotDePasse = asyncHandler(async (req, res) => {
 
 export const changerMonMotDePasse = asyncHandler(async (req, res) =>
   res.json(await UtilisateursService.changerMonMotDePasse(req.user.id, req.body)));
+
+// NOUVEAU : Route pour lister les formateurs et leurs sessions
+export const listerFormateurs = asyncHandler(async (req, res) => 
+  res.json(await UtilisateursService.listerFormateurs(req.user.id_etablissement))
+);

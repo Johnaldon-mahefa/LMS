@@ -41,21 +41,23 @@ async function getQuestionsSafe(idEvaluation) {
   return questions;
 }
 
-export async function demarrerTentative(idEvaluation, idUtilisateur) {
+// CORRECTION : On ajoute idEtablissement
+export async function demarrerTentative(idEvaluation, idUtilisateur, idEtablissement) {
   const evaluation = await Evaluation.findById(idEvaluation);
   if (!evaluation) throw new AppError(404, "Évaluation introuvable.");
   if (evaluation.type_evaluation === 'fichier') throw new AppError(400, "Cette évaluation ne contient pas de QCM.");
 
   const module = await Module.findById(evaluation.id_module);
-  const inscriptions = await Inscription.findValideesByApprenant(idUtilisateur);
+  
+  // On passe idEtablissement pour filtrer
+  const inscriptions = await Inscription.findValideesByApprenant(idUtilisateur, idEtablissement);
   const inscription = inscriptions.find(i => i.id_formation === module.id_formation);
+  
   if (!inscription) throw new AppError(403, "Vous n'êtes pas inscrit à cette formation.");
 
-  // 1. Chercher une tentative en cours
   const tentativeEnCours = await Tentative.findEnCours(inscription.id_inscription, idEvaluation);
   
   if (tentativeEnCours) {
-    // Si le chrono existe, on vérifie s'il est dépassé
     if (evaluation.duree_minutes && evaluation.duree_minutes > 0) {
       const dateDebut = new Date(tentativeEnCours.date_debut).getTime();
       const dateFinTheorique = dateDebut + (evaluation.duree_minutes * 60000);
@@ -68,19 +70,16 @@ export async function demarrerTentative(idEvaluation, idUtilisateur) {
         return { idTentative: tentativeEnCours.id_tentative, dureeMinutes: tempsRestantMinutes, questions, reprise: true };
       }
     } else {
-      // Pas de chrono, on reprend
       const questions = await getQuestionsSafe(idEvaluation);
       return { idTentative: tentativeEnCours.id_tentative, dureeMinutes: null, questions, reprise: true };
     }
   }
 
-  // 2. Si pas de tentative en cours, vérifier la limite
   const nbDejaFaites = await Tentative.compterTentatives(inscription.id_inscription, idEvaluation);
   if (nbDejaFaites >= evaluation.nb_tentatives_max) {
     throw new AppError(403, `Limite atteinte : vous avez droit à ${evaluation.nb_tentatives_max} tentative(s).`);
   }
 
-  // 3. Créer la tentative
   const idTentative = await Tentative.insert({
     idInscription: inscription.id_inscription,
     idEvaluation: idEvaluation,
@@ -91,7 +90,6 @@ export async function demarrerTentative(idEvaluation, idUtilisateur) {
   return { idTentative, dureeMinutes: evaluation.duree_minutes, questions, reprise: false };
 }
 
-
 export async function soumettreTentative(idTentative, idUtilisateur, reponsesSoumises) {
   const tentative = await Tentative.findById(idTentative);
   if (!tentative) throw new AppError(404, "Tentative introuvable.");
@@ -100,11 +98,10 @@ export async function soumettreTentative(idTentative, idUtilisateur, reponsesSou
   const evaluation = await Evaluation.findById(tentative.id_evaluation);
   const questions = await Question.findByEvaluation(evaluation.id_evaluation);
 
-  // VÉRIFICATION DU CHRONOMÈTRE
   if (evaluation.duree_minutes) {
     const dateDebut = new Date(tentative.date_debut).getTime();
     const dateFinTheorique = dateDebut + (evaluation.duree_minutes * 60000);
-    if (Date.now() > dateFinTheorique + 30000) { // 30 sec de tolérance
+    if (Date.now() > dateFinTheorique + 30000) {
       await calculerEtSauvegarderScore(idTentative, evaluation, questions, reponsesSoumises, 'expiree');
       throw new AppError(403, "Le temps imparti est écoulé. Votre tentative a été soumise automatiquement.");
     }

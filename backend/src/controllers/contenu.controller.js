@@ -1,9 +1,9 @@
-// Cas d'utilisation « Gérer le contenu pédagogique ».
 import { ok, cree, sansContenu, id } from "../utils/http.js";
 import * as Service from "../services/contenu.service.js";
 
-export const mesFormations = ok((req) => Service.mesFormations(req.user.id));
-export const detailModule = ok((req) => Service.detailModule(id(req), req.user.id));
+export const mesFormations = ok((req) => Service.mesFormations(req.user.id, req.user.id_etablissement));
+export const detailModule = ok((req) => Service.detailModule(id(req), req.user.id, req.user.id_etablissement));
+
 export const creerModule = cree((req) => Service.creerModule(id(req), req.user.id, req.body));
 export const modifierModule = ok((req) => Service.modifierModule(id(req), req.user.id, req.body));
 export const supprimerModule = sansContenu((req) => Service.supprimerModule(id(req), req.user.id));

@@ -1,4 +1,3 @@
-// Service : « Consulter le contenu de ses formations » (RG8, RG13).
 import path from "node:path";
 import { env } from "../config/env.js";
 import { AppError } from "../utils/AppError.js";
@@ -11,13 +10,12 @@ import * as Soumission from "../models/soumission.model.js";
 import * as Formation from "../models/formation.model.js";
 import { calculer } from "./resultats.service.js";
 
-export async function mesFormations(idApprenant) {
-  const inscriptions = await Inscription.findValideesByApprenant(idApprenant);
+export async function mesFormations(idApprenant, idEtablissement) {
+  const inscriptions = await Inscription.findValideesByApprenant(idApprenant, idEtablissement);
   for (const i of inscriptions) i.progression = (await calculer(i.id_inscription)).progression;
   return inscriptions;
 }
 
-// RG8 : un apprenant ne voit que les modules publiés des formations pour lesquelles son inscription est validée.
 export async function contenuInscription(idInscription, idApprenant) {
   const inscription = await Inscription.findById(idInscription);
   if (!inscription || inscription.id_apprenant !== idApprenant || inscription.statut_inscription !== "validee")
@@ -35,16 +33,25 @@ export async function contenuInscription(idInscription, idApprenant) {
   return { inscription, modules };
 }
 
-// Téléchargement d'une ressource : l'auteur du module, ou un apprenant dont l'inscription est validée sur un module publié.
-export async function ressourceAutorisee(idRessource, utilisateur) {
+// CORRECTION : Vérification Multi-Tenant pour les fichiers
+export async function ressourceAutorisee(idRessource, utilisateur, idEtablissement) {
   const ressource = await Ressource.findById(idRessource);
   if (!ressource) throw new AppError(404, "Fichier introuvable.");
+  
   const module = await Module.findById(ressource.id_module);
+  const formation = await Formation.findById(module.id_formation);
+  
+  // On vérifie que la ressource appartient bien à l'école active
+  if (formation.id_etablissement !== idEtablissement) {
+    throw new AppError(403, "Cette ressource n'appartient pas à votre établissement actuel.");
+  }
+
   let autorise = module.id_auteur === utilisateur.id;
   if (!autorise && module.statut_module === "publie") {
-    const inscriptions = await Inscription.findValideesByApprenant(utilisateur.id);
+    const inscriptions = await Inscription.findValideesByApprenant(utilisateur.id, idEtablissement);
     autorise = inscriptions.some((i) => i.id_formation === module.id_formation);
   }
   if (!autorise) throw new AppError(403, "Accès refusé à cette ressource.");
+  
   return { chemin: path.join(env.uploadDir, ressource.chemin_fichier), nom: ressource.nom_fichier };
 }

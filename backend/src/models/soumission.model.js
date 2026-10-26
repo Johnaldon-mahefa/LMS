@@ -1,4 +1,3 @@
-// Modèle : classe Soumission (requêtes SQL uniquement).
 import { query } from "../config/db.js";
 
 const COLS = `s.id_soumission, s.id_inscription, s.id_evaluation, to_char(s.date_depot,'YYYY-MM-DD HH24:MI') AS date_depot,
@@ -14,12 +13,21 @@ export async function findById(id) {
 export async function findByInscriptionAndEvaluation(idInscription, idEvaluation) {
   return (await query(`SELECT ${COLS} ${FROM} WHERE s.id_inscription = $1 AND s.id_evaluation = $2`, [idInscription, idEvaluation])).rows[0] || null;
 }
-export async function findACorriger(idFormateur) {
+
+// MULTI-TENANT : On filtre par école
+export async function findACorriger(idFormateur, idEtablissement) {
   return (await query(
-    `SELECT ${COLS} ${FROM} WHERE s.statut_soumission = 'soumise'
+    `SELECT ${COLS} ${FROM} 
+     WHERE s.statut_soumission = 'soumise'
        AND EXISTS (SELECT 1 FROM affectation a WHERE a.id_session = i.id_session AND a.id_utilisateur = $1)
-     ORDER BY s.date_depot`, [idFormateur])).rows;
+       AND e.id_module IN (
+         SELECT m.id_module FROM module m 
+         JOIN formation f ON m.id_formation = f.id_formation 
+         WHERE f.id_etablissement = $2
+       )
+     ORDER BY s.date_depot`, [idFormateur, idEtablissement])).rows;
 }
+
 export async function insert({ idInscription, idEvaluation, nomFichier, cheminFichier }) {
   return (await query(
     "INSERT INTO soumission (id_inscription, id_evaluation, nom_fichier, chemin_fichier) VALUES ($1,$2,$3,$4) RETURNING id_soumission",
@@ -39,7 +47,6 @@ export async function evaluationsAvecResultat(idInscription, idFormation) {
      WHERE m.id_formation = $2 AND m.statut_module = 'publie'
      ORDER BY m.ordre, m.id_module, e.id_evaluation`, [idInscription, idFormation])).rows;
 }
-
 export async function countACorrigerParSession(idSession) {
   return (await query(
     `SELECT i.id_inscription, COUNT(*)::int AS n FROM soumission s JOIN inscription i ON i.id_inscription = s.id_inscription

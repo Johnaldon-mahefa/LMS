@@ -1,11 +1,23 @@
 // Téléchargement contrôlé des fichiers : l'accès est vérifié par les services avant l'envoi.
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { id } from "../utils/http.js";
-import { AppError } from "../utils/AppError.js";
+import path from "node:path";
+import { createReadStream } from "node:fs";
+import { ok } from "../utils/http.js";
 import * as Consultation from "../services/consultation.service.js";
 import * as Soumissions from "../services/soumissions.service.js";
 
-const envoyer = (res, { chemin, nom }) => res.download(chemin, nom, (err) => { if (err && !res.headersSent) res.status(404).json({ message: "Fichier introuvable sur le serveur." }); });
+// Pour les ressources du formateur
+export const ressource = ok(async (req, res) => {
+  // CORRECTION : On passe req.user.id_etablissement
+  const { chemin, nom } = await Consultation.ressourceAutorisee(Number(req.params.id), req.user, req.user.id_etablissement);
+  res.setHeader("Content-Disposition", `attachment; filename="${nom}"`);
+  res.setHeader("Content-Type", "application/octet-stream");
+  createReadStream(chemin).pipe(res);
+});
 
-export const ressource = asyncHandler(async (req, res) => envoyer(res, await Consultation.ressourceAutorisee(id(req), req.user)));
-export const soumission = asyncHandler(async (req, res) => envoyer(res, await Soumissions.fichierAutorise(id(req), req.user)));
+// Pour les soumissions (travaux déposés)
+export const soumission = ok(async (req, res) => {
+  const { chemin, nom } = await Soumissions.fichierAutorise(Number(req.params.id), req.user);
+  res.setHeader("Content-Disposition", `attachment; filename="${nom}"`);
+  res.setHeader("Content-Type", "application/octet-stream");
+  createReadStream(chemin).pipe(res);
+});

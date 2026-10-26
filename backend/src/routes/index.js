@@ -9,6 +9,7 @@ import fichiersRoutes from "./fichiers.routes.js";
 import profilRoutes from "./profil.routes.js";
 import notificationsRoutes from "./notifications.routes.js";
 import rechercheRoutes from "./recherche.routes.js";
+import etablissementRoutes from "./etablissement.routes.js";
 
 const router = Router();
 router.get("/sante", (_req, res) => res.json({ statut: "ok" }));
@@ -21,4 +22,6 @@ router.use("/fichiers", fichiersRoutes);
 router.use("/profil", profilRoutes);
 router.use("/notifications", notificationsRoutes);
 router.use("/recherche", rechercheRoutes);
+
+router.use("/etablissement", etablissementRoutes);
 export default router;

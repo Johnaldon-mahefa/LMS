@@ -1,4 +1,4 @@
-// Service : « Gérer le contenu pédagogique » — classes Module, Leçon, Ressource, Évaluation (RG8, RG9).
+// Service : « Gérer le contenu pédagogique ».
 import { AppError } from "../utils/AppError.js";
 import { supprimerFichier } from "../middlewares/upload.js";
 import path from "node:path";
@@ -13,10 +13,8 @@ import * as Utilisateur from "../models/utilisateur.model.js";
 import * as Mailer from "./mailer.service.js";
 import { emailNouveauModule } from "../utils/emailTemplates.js";
 import * as Notifications from "./notifications.service.js";
-
 const exiger = (valeur, message) => { if (!valeur || !String(valeur).trim()) throw new AppError(400, message); };
 
-// RG9 : un formateur ne modifie que les modules dont il est l'auteur.
 async function moduleModifiable(idModule, idFormateur) {
   const module = await Module.findById(idModule);
   if (!module) throw new AppError(404, "Module introuvable.");
@@ -24,18 +22,24 @@ async function moduleModifiable(idModule, idFormateur) {
   return module;
 }
 
-export async function mesFormations(idFormateur) {
-  const formations = await Formation.findAffecteesA(idFormateur);
+// MULTI-TENANT : On filtre par établissement
+export async function mesFormations(idFormateur, idEtablissement) {
+  const formations = await Formation.findAffecteesA(idFormateur, idEtablissement);
   for (const f of formations) {
     f.modules = (await Module.findByFormation(f.id_formation)).map((m) => ({ ...m, modifiable: m.id_auteur === idFormateur }));
   }
   return formations;
 }
 
-export async function detailModule(idModule, idFormateur) {
+// MULTI-TENANT : On vérifie que le module appartient à l'école active
+export async function detailModule(idModule, idFormateur, idEtablissement) {
   const module = await Module.findById(idModule);
   if (!module) throw new AppError(404, "Module introuvable.");
   if (!(await Formation.formateurAffecte(module.id_formation, idFormateur))) throw new AppError(403, "Accès refusé à ce module.");
+  
+  const formation = await Formation.findById(module.id_formation);
+  if (formation.id_etablissement !== idEtablissement) throw new AppError(403, "Ce module n'appartient pas à votre établissement actuel.");
+
   return {
     ...module, modifiable: module.id_auteur === idFormateur,
     lecons: await Lecon.findByModule(idModule), ressources: await Ressource.findByModule(idModule), evaluations: await Evaluation.findByModule(idModule),
@@ -69,7 +73,6 @@ export async function supprimerModule(id, idFormateur) {
   await Module.remove(id);
 }
 
-// Envoie un email à tous les apprenants inscrits (inscriptions validées) dans les sessions de la formation.
 async function envoyerEmailNouveauModule(module, formation) {
   try {
     const sessions = await Session.findByFormation(formation.id_formation);
@@ -82,14 +85,20 @@ async function envoyerEmailNouveauModule(module, formation) {
         const u = await Utilisateur.findById(i.id_apprenant);
         if (!u || !u.identifiant || !u.identifiant.includes("@")) continue;
         const tpl = emailNouveauModule({
-          prenom: u.prenom, formation: formation.intitule, module: module.titre,
+          prenom: u.prenom,
+          formation: formation.intitule,
+          module: module.titre,
           urlPlateforme: `${process.env.FRONTEND_URL || "http://localhost:5173"}/mes-formations`,
         });
         Mailer.envoyer({ to: u.identifiant, subject: tpl.subject, html: tpl.html, text: tpl.text })
           .catch((err) => console.error("[contenu.publierModule] email :", err.message));
+
         Notifications.creer({
-          idUtilisateur: u.id_utilisateur, type: "module_publie", titre: "Nouveau module disponible",
-          message: `Le module "${module.titre}" a été publié dans "${formation.intitule}".`, lien: "/mes-formations",
+          idUtilisateur: u.id_utilisateur,
+          type: "module_publie",
+          titre: "Nouveau module disponible",
+          message: `Le module "${module.titre}" a été publié dans "${formation.intitule}".`,
+          lien: "/mes-formations",
         });
       }
     }
@@ -98,7 +107,6 @@ async function envoyerEmailNouveauModule(module, formation) {
   }
 }
 
-// RG8 : un module ne peut être publié que s'il contient au moins une leçon et une évaluation.
 export async function publierModule(id, idFormateur) {
   const module = await moduleModifiable(id, idFormateur);
   const manquants = [];
@@ -106,11 +114,13 @@ export async function publierModule(id, idFormateur) {
   if (module.nb_evaluations < 1) manquants.push("au moins une évaluation");
   if (manquants.length) throw new AppError(409, `Publication refusée : le module doit contenir ${manquants.join(" et ")}.`);
   await Module.setStatut(id, "publie");
+
   const formation = await Formation.findById(module.id_formation);
   if (formation) {
     const moduleComplet = await Module.findById(id);
     envoyerEmailNouveauModule(moduleComplet, formation);
   }
+
   return Module.findById(id);
 }
 
@@ -148,7 +158,7 @@ export async function supprimerLecon(id, idFormateur) {
   await Lecon.remove(id);
 }
 
-/* ----- Ressources (fichiers) ----- */
+/* ----- Ressources ----- */
 const cheminRelatif = (file) => path.join(path.basename(path.dirname(file.path)), file.filename);
 export async function deposerRessource(idModule, idFormateur, file) {
   const chemin = file ? cheminRelatif(file) : null;
@@ -172,7 +182,7 @@ export async function supprimerRessource(id, idFormateur) {
   await supprimerFichier(ressource.chemin_fichier);
 }
 
-/* ----- Évaluations (MIS A JOUR POUR LE QCM) ----- */
+/* ----- Évaluations ----- */
 function verifierEvaluation({ intitule, noteMaximale, typeEvaluation, dureeMinutes, seuilReussite, nbTentativesMax }) {
   exiger(intitule, "L'intitulé de l'évaluation est obligatoire.");
   if (!(Number(noteMaximale) > 0)) throw new AppError(400, "La note maximale doit être positive.");

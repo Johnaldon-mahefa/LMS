@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { authenticate } from "../middlewares/auth.js";
-import * as Recherche from "../controllers/recherche.controller.js";
+import * as RechercheController from "../controllers/recherche.controller.js";
 
-const r = Router();
-r.use(authenticate);
-r.get("/", Recherche.chercher);
+const router = Router();
 
-export default r;
+// Route publique protégée par l'authentification (pour avoir req.user)
+router.get("/", authenticate, RechercheController.rechercher);
+
+export default router;

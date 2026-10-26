@@ -131,12 +131,30 @@ export default function Formations() {
                 <h2>{f.intitule} <span className={`etiquette ${f.statut_formation}`}>{f.statut_formation}</span></h2>
                 <p>{f.nb_sessions} session(s), {f.nb_modules_publies}/{f.nb_modules} module(s) publié(s)</p>
                 <div className="actions">
-                  <button type="button" onClick={() => ouvrir(f.id_formation)}>{ouverte === f.id_formation ? "Masquer les sessions" : "Sessions"}</button>
-                  <button type="button" onClick={() => ouvrirModif(f)}>Modifier</button>
-                  {f.statut_formation === "brouillon" && <button type="button" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/publier`, { method: "PATCH" }), "Formation publiée.")}>Publier</button>}
-                  {f.statut_formation === "publiee" && <button type="button" className="danger" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/archiver`, { method: "PATCH" }), "Formation archivée.")}>Archiver</button>}
-                  {f.statut_formation === "archivee" && <button type="button" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/restaurer`, { method: "PATCH" }), "Formation restaurée en brouillon.")}>Restaurer</button>}
-                  <button type="button" className="danger" onClick={() => supprimerFormation(f)}>Supprimer</button>
+                  <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => ouvrir(f.id_formation)} title="Voir les sessions">
+                    <i className="bi bi-calendar-event me-1"></i> {ouverte === f.id_formation ? "Masquer" : "Sessions"}
+                  </button>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => ouvrirModif(f)} title="Modifier la formation">
+                    <i className="bi bi-pencil me-1"></i> Modifier
+                  </button>
+                  {f.statut_formation === "brouillon" && (
+                    <button type="button" className="btn btn-sm btn-success" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/publier`, { method: "PATCH" }), "Formation publiée.")} title="Publier la formation">
+                      <i className="bi bi-cloud-arrow-up me-1"></i> Publier
+                    </button>
+                  )}
+                  {f.statut_formation === "publiee" && (
+                    <button type="button" className="btn btn-sm btn-warning" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/archiver`, { method: "PATCH" }), "Formation archivée.")} title="Archiver la formation">
+                      <i className="bi bi-archive me-1"></i> Archiver
+                    </button>
+                  )}
+                  {f.statut_formation === "archivee" && (
+                    <button type="button" className="btn btn-sm btn-success" onClick={() => agir(() => api(`/admin/formations/${f.id_formation}/restaurer`, { method: "PATCH" }), "Formation restaurée.")} title="Restaurer la formation">
+                      <i className="bi bi-arrow-counterclockwise me-1"></i> Restaurer
+                    </button>
+                  )}
+                  <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => supprimerFormation(f)} title="Supprimer la formation">
+                    <i className="bi bi-trash me-1"></i> Supprimer
+                  </button>
                 </div>
 
                 {ouverte === f.id_formation && (
@@ -146,14 +164,14 @@ export default function Formations() {
                       <tbody>
                         {sessions.map((s) => (
                           <tr key={s.id_session}>
-                            <td>{s.date_debut}</td>
-                            <td>{s.date_fin}</td>
+                            <td>{new Date(s.date_debut).toLocaleDateString('fr-FR')}</td>
+                            <td>{new Date(s.date_fin).toLocaleDateString('fr-FR')}</td>
                             <td>{s.places_restantes} / {s.capacite_max}</td>
                             <td>
                               {s.formateurs.map((x) => (
                                 <span key={x.id_utilisateur} className="puce">
                                   {x.prenom} {x.nom}
-                                  <button type="button" onClick={() => agir(() => api(`/admin/sessions/${s.id_session}/formateurs/${x.id_utilisateur}`, { method: "DELETE" }), "Formateur retiré.")}>×</button>
+                                  <button type="button" onClick={() => agir(() => api(`/admin/sessions/${s.id_session}/formateurs/${x.id_utilisateur}`, { method: "DELETE" }), "Formateur retiré.")} title="Retirer ce formateur">×</button>
                                 </span>
                               ))}
                               <select defaultValue="" onChange={(e) => { if (e.target.value) agir(() => api(`/admin/sessions/${s.id_session}/formateurs`, { method: "POST", body: { idFormateur: Number(e.target.value) } }), "Formateur affecté."); e.target.value = ""; }}>
@@ -161,7 +179,11 @@ export default function Formations() {
                                 {formateurs.map((x) => <option key={x.id_utilisateur} value={x.id_utilisateur}>{x.prenom} {x.nom}</option>)}
                               </select>
                             </td>
-                            <td><button type="button" className="danger" onClick={() => supprimerSession(s)}>Supprimer</button></td>
+                            <td>
+                              <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => supprimerSession(s)} title="Supprimer la session">
+                                <i className="bi bi-trash"></i>
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -171,7 +193,7 @@ export default function Formations() {
                       <label>Début<input type="date" value={session.dateDebut} onChange={(e) => setSession({ ...session, dateDebut: e.target.value })} required /></label>
                       <label>Fin<input type="date" value={session.dateFin} onChange={(e) => setSession({ ...session, dateFin: e.target.value })} required /></label>
                       <label>Capacité<input type="number" min="1" value={session.capaciteMax} onChange={(e) => setSession({ ...session, capaciteMax: e.target.value })} required /></label>
-                      <button type="submit">Ajouter une session</button>
+                      <button type="submit" className="btn btn-primary"><i className="bi bi-plus-circle me-1"></i> Ajouter une session</button>
                     </form>
                   </div>
                 )}

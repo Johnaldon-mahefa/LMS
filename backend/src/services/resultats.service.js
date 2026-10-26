@@ -8,6 +8,7 @@ import * as Tentative from "../models/tentative.model.js";
 import * as Attestation from "../models/attestation.model.js";
 import * as Session from "../models/session.model.js";
 import * as Utilisateur from "../models/utilisateur.model.js";
+import * as Formation from "../models/formation.model.js"; // <-- AJOUT
 import * as Mailer from "./mailer.service.js";
 import { emailAttestation } from "../utils/emailTemplates.js";
 import { env } from "../config/env.js";
@@ -123,11 +124,20 @@ export async function attestationPdf(idInscription, idApprenant) {
   return { pdf, nom: `${attestation.numero_attestation}.pdf` };
 }
 
-export const sessionsDuFormateur = (idFormateur) => Session.findByFormateur(idFormateur);
+// MULTI-TENANT : Filtre par établissement
+export const sessionsDuFormateur = (idFormateur, idEtablissement) => Session.findByFormateur(idFormateur, idEtablissement);
 
-export async function progressionSession(idSession, idFormateur) {
-  if (!(await Session.formateurAffecte(idSession, idFormateur))) throw new AppError(403, "Cette session ne vous est pas affectée.");
+export async function progressionSession(idSession, idFormateur, idEtablissement) {
+  if (!(await Session.formateurAffecte(idSession, idFormateur))) 
+    throw new AppError(403, "Cette session ne vous est pas affectée.");
+    
   const session = await Session.findById(idSession);
+  const formation = await Formation.findById(session.id_formation);
+  
+  // MULTI-TENANT : On vérifie que la session appartient à l'école active
+  if (formation.id_etablissement !== idEtablissement) 
+    throw new AppError(403, "Cette session n'appartient pas à votre établissement actuel.");
+
   const aCorriger = new Map((await Soumission.countACorrigerParSession(idSession)).map((r) => [r.id_inscription, r.n]));
   const apprenants = [];
   for (const i of await Inscription.findValideesBySession(idSession)) {
@@ -139,6 +149,7 @@ export async function progressionSession(idSession, idFormateur) {
 
 export async function detailPourFormateur(idInscription, idFormateur) {
   const inscription = await Inscription.findById(idInscription);
-  if (!inscription || !(await Session.formateurAffecte(inscription.id_session, idFormateur))) throw new AppError(403, "Cette inscription ne relève pas de vos sessions.");
+  if (!inscription || !(await Session.formateurAffecte(inscription.id_session, idFormateur))) 
+    throw new AppError(403, "Cette inscription ne relève pas de vos sessions.");
   return calculer(idInscription);
 }

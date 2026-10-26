@@ -1,6 +1,5 @@
-// Service : « Gérer les inscriptions ».
 import * as Notifications from "./notifications.service.js";
-import { withTransaction, query } from "../config/db.js"; // <-- Ajout de query
+import { withTransaction, query } from "../config/db.js";
 import { AppError } from "../utils/AppError.js";
 import * as Inscription from "../models/inscription.model.js";
 import * as Session from "../models/session.model.js";
@@ -15,23 +14,14 @@ async function chargerInscription(id, client) {
   return inscription;
 }
 
-/* ----- Administrateur ----- */
-// MULTI-TENANT : On filtre les inscriptions par établissement et on calcule les places
 export const lister = async (idEtablissement) => {
   const { rows } = await query(`
-    SELECT 
-      i.*, 
-      s.date_debut, 
-      s.date_fin, 
-      s.capacite_max,
-      (s.capacite_max - (
-        SELECT COUNT(*)::int 
-        FROM inscription i2 
-        WHERE i2.id_session = s.id_session AND i2.statut_inscription = 'validee'
-      )) AS places_restantes,
-      u.nom, 
-      u.prenom, 
-      f.intitule AS formation
+    SELECT i.*, s.date_debut, s.date_fin, u.nom, u.prenom, f.intitule AS formation,
+           s.capacite_max,
+           (s.capacite_max - (
+             SELECT COUNT(*)::int FROM inscription i2 
+             WHERE i2.id_session = s.id_session AND i2.statut_inscription = 'validee'
+           )) AS places_restantes
     FROM inscription i
     JOIN session s ON i.id_session = s.id_session
     JOIN formation f ON s.id_formation = f.id_formation
@@ -121,16 +111,29 @@ export async function annuler(id) {
   return Inscription.findById(id);
 }
 
+// CORRECTION ICI : Vérification du rôle Multi-Tenant
 export async function inscrireDirectement(idApprenant, idSession) {
+  const session = await Session.findById(Number(idSession));
+  if (!session) throw new AppError(404, "Session introuvable.");
+  const formation = await Formation.findById(session.id_formation);
+  const idEtablissement = formation.id_etablissement;
+
   const apprenant = await Utilisateur.findById(Number(idApprenant));
-  if (!apprenant || !apprenant.roles.includes("apprenant") || apprenant.statut_compte !== "actif")
-    throw new AppError(400, "L'utilisateur choisi n'est pas un apprenant actif.");
+  if (!apprenant || apprenant.statut_compte !== "actif") {
+    throw new AppError(400, "L'utilisateur choisi n'est pas actif.");
+  }
+
+  const roles = await Utilisateur.getRolesInEtablissement(apprenant.id_utilisateur, idEtablissement);
+  if (!roles.includes("apprenant")) {
+    throw new AppError(400, "L'utilisateur choisi n'est pas un apprenant dans cet établissement.");
+  }
+
   const id = await withTransaction(async (client) => {
-    const session = await controlerSessionOuverte(idSession);
+    const sessionOuverte = await controlerSessionOuverte(idSession);
     if (await Inscription.exists(apprenant.id_utilisateur, idSession))
       throw new AppError(409, "L'apprenant est déjà inscrit à cette session.");
     await Inscription.verrouillerSession(client, idSession);
-    if ((await Inscription.countValidees(client, idSession)) >= session.capacite_max)
+    if ((await Inscription.countValidees(client, idSession)) >= sessionOuverte.capacite_max)
       throw new AppError(409, "La session est complète.");
     return Inscription.insert(client, apprenant.id_utilisateur, idSession, "validee");
   });
@@ -158,7 +161,6 @@ async function controlerSessionOuverte(idSession) {
   return session;
 }
 
-// MULTI-TENANT : Le catalogue ne montre que les formations de l'école
 export async function catalogue(idEtablissement) {
   const { rows: formations } = await query(`
     SELECT f.*, 
@@ -182,7 +184,7 @@ export async function demander(idApprenant, idSession) {
   return Inscription.findById(id);
 }
 
-export const mesInscriptions = (idApprenant) => Inscription.findByApprenant(idApprenant);
+export const mesInscriptions = (idApprenant, idEtablissement) => Inscription.findByApprenant(idApprenant, idEtablissement);
 
 export async function annulerParApprenant(idInscription, idApprenant) {
   const inscription = await Inscription.findById(idInscription);

@@ -6,10 +6,12 @@ import Recherche from "./Recherche.jsx";
 
 const MENUS = {
   administrateur: [
-    ["/statistiques", "Statistiques", "bi-bar-chart-line"],
     ["/utilisateurs", "Utilisateurs", "bi-people"],
+    ["/formateurs", "Formateurs", "bi-person-badge"],
     ["/formations", "Formations", "bi-journal-bookmark"],
     ["/inscriptions", "Inscriptions", "bi-person-plus"],
+    ["/statistiques", "Statistiques", "bi-bar-chart-line"],
+    ["/mon-abonnement", "Mon abonnement", "bi-credit-card"], // <-- NOUVEAU
   ],
   formateur: [
     ["/contenu", "Contenu", "bi-folder2-open"],
@@ -29,12 +31,29 @@ export default function Layout() {
   const [menuOuvert, setMenuOuvert] = useState(false);
   const lieu = useLocation();
 
+  // --- LOGIQUE DU MODE SOMBRE ---
+  const [isDark, setIsDark] = useState(() => {
+    // On vérifie si le thème est déjà dans le localStorage
+    return localStorage.getItem("theme") === "dark";
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.body.classList.add("dark-mode");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.body.classList.remove("dark-mode");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDark]);
+
   useEffect(() => { setMenuOuvert(false); }, [lieu.pathname]);
 
   const liens = utilisateur.roles.flatMap((r) => MENUS[r] || []);
 
   return (
     <div className="layout-sidebar">
+      {/* ================= SIDEBAR ================= */}
       <aside className={`sidebar ${menuOuvert ? "ouverte" : ""}`}>
         <div className="sidebar-marque">
           <Link to="/" className="sidebar-logo" onClick={() => setMenuOuvert(false)}>
@@ -85,8 +104,22 @@ export default function Layout() {
           <button type="button" className="topbar-burger" onClick={() => setMenuOuvert(true)}>
             <i className="bi bi-list"></i>
           </button>
+          
           <Recherche />
-          <Cloche />
+          
+          {/* BOUTONS À DROITE (Mode sombre + Cloche) */}
+          <div className="d-flex align-items-center gap-2 ms-auto">
+            <button 
+              type="button" 
+              className="btn btn-light border-0" 
+              onClick={() => setIsDark(!isDark)}
+              title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
+            >
+              <i className={`bi ${isDark ? 'bi-sun text-warning' : 'bi-moon text-dark'} fs-5`}></i>
+            </button>
+            
+            <Cloche />
+          </div>
         </header>
 
         <main>
@@ -95,4 +128,4 @@ export default function Layout() {
       </div>
     </div>
   );
-}
+} 

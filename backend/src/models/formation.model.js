@@ -6,25 +6,26 @@ const COLONNES = `f.id_formation, f.id_etablissement, f.intitule, f.description,
   (SELECT COUNT(*) FROM module m WHERE m.id_formation = f.id_formation)::int AS nb_modules,
   (SELECT COUNT(*) FROM module m WHERE m.id_formation = f.id_formation AND m.statut_module = 'publie')::int AS nb_modules_publies`;
 
-// Liste filtrée par école
 export async function findAllByEtablissement(idEtablissement) {
   return (await query(`SELECT ${COLONNES} FROM formation f WHERE f.id_etablissement = $1 ORDER BY f.intitule`, [idEtablissement])).rows;
 }
 
-export async function findPubliees() {
-  return (await query(`SELECT ${COLONNES} FROM formation f WHERE f.statut_formation = 'publiee' ORDER BY f.intitule`)).rows;
+export async function findPubliees(idEtablissement) {
+  return (await query(`SELECT ${COLONNES} FROM formation f WHERE f.statut_formation = 'publiee' AND f.id_etablissement = $1 ORDER BY f.intitule`, [idEtablissement])).rows;
 }
 
 export async function findById(id) {
   return (await query(`SELECT ${COLONNES} FROM formation f WHERE f.id_formation = $1`, [id])).rows[0] || null;
 }
 
-export async function findAffecteesA(idFormateur) {
+// MULTI-TENANT : On ajoute idEtablissement
+export async function findAffecteesA(idFormateur, idEtablissement) {
   return (await query(
     `SELECT ${COLONNES} FROM formation f
-     WHERE EXISTS (SELECT 1 FROM session s JOIN affectation a ON a.id_session = s.id_session
+     WHERE f.id_etablissement = $2 
+       AND EXISTS (SELECT 1 FROM session s JOIN affectation a ON a.id_session = s.id_session
                    WHERE s.id_formation = f.id_formation AND a.id_utilisateur = $1)
-     ORDER BY f.intitule`, [idFormateur])).rows;
+     ORDER BY f.intitule`, [idFormateur, idEtablissement])).rows;
 }
 
 export async function formateurAffecte(idFormation, idFormateur) {
@@ -34,11 +35,13 @@ export async function formateurAffecte(idFormation, idFormateur) {
   return rows.length > 0;
 }
 
-export async function existsIntitule(intitule, exceptId = -1) {
-  return (await query("SELECT 1 FROM formation WHERE intitule = $1 AND id_formation <> $2", [intitule, exceptId])).rows.length > 0;
+export async function existsIntitule(intitule, idEtablissement, exceptId = -1) {
+  return (await query(
+    "SELECT 1 FROM formation WHERE intitule = $1 AND id_etablissement = $2 AND id_formation <> $3", 
+    [intitule, idEtablissement, exceptId]
+  )).rows.length > 0;
 }
 
-// Insertion avec id_etablissement
 export async function insert({ idEtablissement, intitule, description, duree, publicVise }) {
   return (await query(
     `INSERT INTO formation (id_etablissement, intitule, description, duree, public_vise) VALUES ($1,$2,$3,$4,$5) RETURNING id_formation`,

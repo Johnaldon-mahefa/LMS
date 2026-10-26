@@ -5,6 +5,9 @@ import { useToast } from "../context/ToastContext.jsx";
 import { useConfirm } from "../context/ConfirmContext.jsx";
 import ReactMarkdown from "react-markdown";
 
+/* ============================================================
+   Liste des formations suivies.
+   ============================================================ */
 export function MesFormations() {
   const toast = useToast();
   const [liste, setListe] = useState([]);
@@ -14,34 +17,51 @@ export function MesFormations() {
   }, []);
 
   return (
-    <>
-      <h1 style={{ marginBottom: 20 }}>Mes formations</h1>
+    <div className="container py-4">
+      <h1 className="h3 fw-bold mb-4">Mes formations</h1>
       {liste.length === 0 ? (
-        <div className="carte">
-          <p style={{ textAlign: "center", padding: 20, color: "#6b6485" }}>
-            Aucune inscription validée. Demandez votre inscription depuis le catalogue.
-          </p>
+        <div className="alert alert-info text-center py-4">
+          Aucune inscription validée. Demandez votre inscription depuis le catalogue.
         </div>
       ) : (
-        <div className="grille-cartes">
+        <div className="row g-4">
           {liste.map((i) => (
-            <Link key={i.id_inscription} to={`/mes-formations/${i.id_inscription}`} style={{ textDecoration: "none", color: "inherit" }}>
-              <div className="carte survol">
-                <h2>{i.formation}</h2>
-                <p style={{ color: "#6b6485", fontSize: 13, margin: "6px 0 12px" }}>Session du {i.date_debut}</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <progress value={i.progression} max="100" style={{ flex: 1 }} />
-                  <strong>{i.progression} %</strong>
+            <div key={i.id_inscription} className="col-12 col-md-6 col-lg-4">
+              <Link to={`/mes-formations/${i.id_inscription}`} className="text-decoration-none">
+                <div className="card h-100 shadow-sm border-0 hover-shadow">
+                  <div className="card-body">
+                    <h5 className="card-title fw-bold text-dark mb-2">{i.formation}</h5>
+                    <p className="text-muted small mb-4">
+                      <i className="bi bi-calendar-event me-1"></i> Session du {new Date(i.date_debut).toLocaleDateString()}
+                    </p>
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="text-muted small fw-semibold">Progression</span>
+                      <span className="text-primary fw-bold">{i.progression}%</span>
+                    </div>
+                    <div className="progress" style={{ height: "8px" }}>
+                      <div 
+                        className="progress-bar bg-primary" 
+                        role="progressbar" 
+                        style={{ width: `${i.progression}%` }} 
+                        aria-valuenow={i.progression} 
+                        aria-valuemin="0" 
+                        aria-valuemax="100"
+                      ></div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            </div>
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
+/* ============================================================
+   Contenu d'une formation suivie (Leçons -> Évaluations -> Suivant).
+   ============================================================ */
 export function ContenuFormation() {
   const { id } = useParams();
   const toast = useToast();
@@ -72,7 +92,7 @@ export function ContenuFormation() {
     try { await telecharger(`/fichiers/ressources/${r.id_ressource}`, r.nom_fichier); } catch (e) { toast.erreur(e.message); }
   }
 
-  // NOUVELLE FONCTION : Faire défiler jusqu'au module suivant
+  // Fonction pour scroller vers le module suivant
   const scrollToModule = (index) => {
     const element = document.getElementById(`module-${index}`);
     if (element) {
@@ -80,119 +100,134 @@ export function ContenuFormation() {
     }
   };
 
-  if (!c) return <div className="carte" />;
+  if (!c) return <div className="p-5 text-center text-muted">Chargement...</div>;
 
   return (
-    <div className="page-lecture">
-      <p style={{ marginBottom: 10 }}>
-        <Link to="/mes-formations" className="lien-btn">← Retour à mes formations</Link>
-      </p>
-      <h1 style={{ marginBottom: 30, fontSize: 32, color: "#4c1d95" }}>{c.inscription.formation}</h1>
+    <div className="container py-4" style={{ maxWidth: '900px' }}>
+      <div className="mb-4">
+        <Link to="/mes-formations" className="text-decoration-none text-muted small">
+          <i className="bi bi-arrow-left me-1"></i> Retour à mes formations
+        </Link>
+        <h1 className="h3 fw-bold mt-2">{c.inscription.formation}</h1>
+      </div>
 
-      {c.modules.length === 0 && <div className="carte"><p>Aucun module publié.</p></div>}
+      {c.modules.length === 0 && <div className="alert alert-warning">Aucun module n'est encore publié.</div>}
 
       {c.modules.map((m, index) => (
-        <div key={m.id_module} id={`module-${index}`} className="bloc-module-complet" style={{ marginBottom: 50 }}>
-          
-          <div className="entete-module">
-            <h2>{m.titre}</h2>
-            {m.description && <p>{m.description}</p>}
+        <div 
+          key={m.id_module} 
+          id={`module-${index}`} 
+          className="card shadow-sm border-0 mb-5"
+          style={{ scrollMarginTop: '80px' }} // Evite que le titre soit caché sous une barre de nav
+        >
+          {/* EN-TÊTE DU MODULE */}
+          <div className="card-header bg-white border-bottom-0 pt-4 pb-0">
+            <span className="badge bg-secondary mb-2">Module {index + 1}</span>
+            <h3 className="fw-bold text-primary mb-1">{m.titre}</h3>
+            {m.description && <p className="text-muted mb-0">{m.description}</p>}
           </div>
 
-          <div className="section-lecons">
+          <div className="card-body">
+            {/* LEÇONS (MARKDOWN) */}
             {m.lecons.map((l) => (
-              <article key={l.id_lecon} className="carte-lecon">
-                <h3 className="lecon-titre">{l.titre}</h3>
+              <div key={l.id_lecon} className="mb-5">
+                <h4 className="fw-bold border-bottom pb-2 mb-3">{l.titre}</h4>
                 <div className="markdown-content">
                   <ReactMarkdown>{l.contenu || ""}</ReactMarkdown>
                 </div>
-              </article>
+              </div>
             ))}
+
+            {/* RESSOURCES */}
+            {m.ressources.length > 0 && (
+              <div className="mt-4 pt-3 border-top">
+                <h6 className="fw-bold text-muted mb-3"><i className="bi bi-paperclip me-2"></i>Ressources téléchargeables</h6>
+                <div className="d-flex flex-wrap gap-2">
+                  {m.ressources.map((r) => (
+                    <button 
+                      key={r.id_ressource} 
+                      className="btn btn-outline-secondary btn-sm" 
+                      onClick={() => telechargerRessource(r)}
+                    >
+                      <i className="bi bi-file-earmark-arrow-down me-1"></i> {r.nom_fichier}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {m.ressources.length > 0 && (
-            <div className="bloc-ressources">
-              <h4 style={{ fontSize: 18, marginBottom: 15 }}>📎 Ressources de ce module</h4>
-              <ul style={{ display: "flex", flexWrap: "wrap", gap: 10, listStyle: "none", padding: 0 }}>
-                {m.ressources.map((r) => (
-                  <li key={r.id_ressource}>
-                    <button type="button" className="btn-ressource" onClick={() => telechargerRessource(r)}>
-                      {r.nom_fichier}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
+          {/* ÉVALUATIONS (En bas du module) */}
           {m.evaluations.length > 0 && (
-            <div className="section-evaluations-module">
-              <h3 className="titre-evaluations">📝 Évaluations du module</h3>
-              {m.evaluations.map((e) => {
-                const typeEval = e.type_evaluation ? e.type_evaluation.toLowerCase() : "fichier";
-                return (
-                  <div key={e.id_evaluation} className="carte-evaluation">
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                      <strong style={{ fontSize: 18 }}>{e.intitule}</strong>
-                      <span className={`etiquette ${typeEval === 'qcm' ? 'publie' : 'brouillon'}`}>
-                        {typeEval === 'fichier' ? 'PDF' : typeEval === 'qcm' ? 'QCM' : 'Mixte'}
-                      </span>
-                      <span className="muted">(note max {e.note_maximale})</span>
-                    </div>
-                    {e.consigne && <p style={{ color: "#6b6485", marginBottom: 15 }}>{e.consigne}</p>}
+            <div className="card-footer bg-light border-top p-4">
+              <h5 className="fw-bold mb-4"><i className="bi bi-pencil-square me-2"></i>Évaluations de ce module</h5>
+              <div className="row g-3">
+                {m.evaluations.map((e) => {
+                  const typeEval = e.type_evaluation ? e.type_evaluation.toLowerCase() : "fichier";
+                  return (
+                    <div key={e.id_evaluation} className="col-12 col-md-6">
+                      <div className="card border-0 shadow-sm h-100">
+                        <div className="card-body p-3">
+                          <div className="d-flex justify-content-between align-items-start mb-2">
+                            <strong className="text-dark">{e.intitule}</strong>
+                            <span className={`badge bg-${typeEval === 'qcm' ? 'primary' : typeEval === 'mixte' ? 'info' : 'secondary'}`}>
+                              {typeEval.toUpperCase()}
+                            </span>
+                          </div>
+                          
+                          {e.meilleur_score !== null && e.meilleur_score !== undefined && (
+                            <div className="alert alert-success py-1 px-2 small mb-3">
+                              <i className="bi bi-check-circle-fill me-1"></i> Score QCM : {e.meilleur_score} / {e.note_maximale}
+                            </div>
+                          )}
 
-                    {e.meilleur_score !== null && e.meilleur_score !== undefined && (
-                      <p style={{ fontWeight: "bold", color: "#10b981", marginBottom: 15 }}>
-                        ✅ Score QCM obtenu : {e.meilleur_score} / {e.note_maximale}
-                      </p>
-                    )}
+                          {(typeEval === 'qcm' || typeEval === 'mixte') && (
+                            <Link to={`/apprenant/qcm/${e.id_evaluation}`} className="btn btn-primary btn-sm w-100 mb-2">
+                              {e.meilleur_score !== null ? "Repasser le QCM" : "Passer le QCM"}
+                            </Link>
+                          )}
 
-                    {(typeEval === 'qcm' || typeEval === 'mixte') && (
-                      <div style={{ marginBottom: 15 }}>
-                        <Link to={`/apprenant/qcm/${e.id_evaluation}`}>
-                          <button type="button" className="btn-action-principal">
-                            {e.meilleur_score !== null ? "Repasser le QCM" : "Passer le QCM"}
-                          </button>
-                        </Link>
+                          {(typeEval === 'fichier' || typeEval === 'mixte') && (
+                            e.soumission ? (
+                              <div className="alert alert-secondary py-1 px-2 small mb-0">
+                                Déposé le {new Date(e.soumission.date_depot).toLocaleDateString()} <br/>
+                                {e.soumission.statut_soumission === "corrigee" ? `Note : ${e.soumission.note} / ${e.note_maximale}` : "En attente"}
+                              </div>
+                            ) : (
+                              <form onSubmit={(ev) => deposer(ev, e.id_evaluation)}>
+                                <div className="input-group input-group-sm">
+                                  <input type="file" className="form-control" name="fichier" required />
+                                  <button className="btn btn-outline-primary" type="submit">Envoyer</button>
+                                </div>
+                              </form>
+                            )
+                          )}
+                        </div>
                       </div>
-                    )}
-
-                    {(typeEval === 'fichier' || typeEval === 'mixte') && (
-                      <>
-                        {e.soumission ? (
-                          <p style={{ padding: 15, backgroundColor: "#f8f8f8", borderRadius: 8, fontSize: 14 }}>
-                            Travail déposé le {e.soumission.date_depot} : {e.soumission.statut_soumission === "corrigee" ? `corrigé, note ${e.soumission.note} / ${e.note_maximale}.` : "en attente de correction."}
-                          </p>
-                        ) : (
-                          <form className="form-depot" onSubmit={(ev) => deposer(ev, e.id_evaluation)}>
-                            <label style={{ display: "block", marginBottom: 10 }}>Déposer mon travail (PDF) :</label>
-                            <input type="file" name="fichier" required style={{ display: "block", marginBottom: 10 }} />
-                            <button type="submit" className="btn-action-secondaire">Déposer le fichier</button>
-                          </form>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
-          {/* BOUTON SUIVANT À LA FIN DU MODULE */}
-          <div style={{ display: "flex", justifyContent: "center", marginTop: 40, paddingTop: 20, borderTop: "1px dashed #e5e7eb" }}>
+          {/* BOUTON CONTINUER */}
+          <div className="text-center p-4">
             {index < c.modules.length - 1 ? (
               <button 
                 type="button" 
-                className="btn-suivant"
-                onClick={() => scrollToModule(index + 1)}
+                onClick={() => scrollToModule(index + 1)} 
+                className="btn btn-primary rounded-pill px-5 py-2 fw-bold"
               >
-                Continuer vers le module suivant →
+                Continuer vers le module suivant <i className="bi bi-arrow-down ms-2"></i>
               </button>
             ) : (
-              <div style={{ textAlign: "center" }}>
-                <p style={{ color: "#10b981", fontWeight: "bold", marginBottom: 15 }}>🎉 Félicitations, vous avez terminé tous les modules !</p>
+              <div>
+                <p className="text-success fw-bold mb-2"> Félicitations, vous avez terminé tous les modules !</p>
                 <Link to="/mes-formations">
-                  <button type="button" className="btn-action-secondaire">Retour à mes formations</button>
+                  <button type="button" className="btn btn-outline-primary rounded-pill px-4">
+                    Retour à mes formations
+                  </button>
                 </Link>
               </div>
             )}

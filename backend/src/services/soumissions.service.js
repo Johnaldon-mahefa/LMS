@@ -1,4 +1,3 @@
-// Service : « Soumettre une évaluation » et « Corriger les soumissions » (RG10, RG11).
 import * as Notifications from "./notifications.service.js";
 import path from "node:path";
 import { env } from "../config/env.js";
@@ -16,8 +15,6 @@ import { emailNoteDisponible } from "../utils/emailTemplates.js";
 
 const cheminRelatif = (file) => path.join(path.basename(path.dirname(file.path)), file.filename);
 
-// RG10 : une soumission est liée à une inscription validée et à une évaluation d'un module publié ;
-// une seule par inscription et par évaluation (contrainte UNIQUE en base), non modifiable après dépôt.
 export async function deposer({ idEvaluation, idInscription, utilisateur, file }) {
   const chemin = file ? cheminRelatif(file) : null;
   try {
@@ -45,12 +42,12 @@ export async function deposer({ idEvaluation, idInscription, utilisateur, file }
   }
 }
 
-export const aCorriger = (idFormateur) => Soumission.findACorriger(idFormateur);
+// MULTI-TENANT : On passe idEtablissement
+export const aCorriger = (idFormateur, idEtablissement) => Soumission.findACorriger(idFormateur, idEtablissement);
 
 async function chargerPourFormateur(id, idFormateur) {
   const soumission = await Soumission.findById(id);
   if (!soumission) throw new AppError(404, "Soumission introuvable.");
-  // RG11 : un formateur ne corrige que les soumissions des apprenants de ses sessions.
   if (!(await Session.formateurAffecte(soumission.id_session, idFormateur))) throw new AppError(403, "Cette soumission ne relève pas de vos sessions.");
   return soumission;
 }
@@ -59,7 +56,6 @@ export async function detailPourFormateur(id, idFormateur) {
   return chargerPourFormateur(id, idFormateur);
 }
 
-// Envoie un email à l'apprenant pour lui signaler que sa note est disponible.
 async function envoyerEmailNote(soumission) {
   try {
     const u = await Utilisateur.findById(soumission.id_apprenant);
@@ -79,7 +75,6 @@ async function envoyerEmailNote(soumission) {
     });
        await Mailer.envoyer({ to: u.identifiant, subject: tpl.subject, html: tpl.html, text: tpl.text });
 
-    // Notification in-app
     await Notifications.creer({
       idUtilisateur: u.id_utilisateur,
       type: "note_disponible",
@@ -92,7 +87,6 @@ async function envoyerEmailNote(soumission) {
   }
 }
 
-// RG11 : note comprise entre 0 et la note maximale ; la soumission passe de « soumise » à « corrigée » ; note non modifiable ensuite.
 export async function corriger(id, idFormateur, { note, commentaire }) {
   const soumission = await chargerPourFormateur(id, idFormateur);
   if (soumission.statut_soumission !== "soumise") throw new AppError(409, "Cette soumission est déjà corrigée : la note n'est plus modifiable.");
@@ -103,13 +97,11 @@ export async function corriger(id, idFormateur, { note, commentaire }) {
 
   const resultat = await Soumission.findById(id);
 
-  // Envoi de l'email de notification (non bloquant)
   envoyerEmailNote(resultat);
 
   return resultat;
 }
 
-// Fichier d'une soumission : l'apprenant qui l'a déposée ou un formateur affecté à la session.
 export async function fichierAutorise(id, utilisateur) {
   const soumission = await Soumission.findById(id);
   if (!soumission) throw new AppError(404, "Soumission introuvable.");

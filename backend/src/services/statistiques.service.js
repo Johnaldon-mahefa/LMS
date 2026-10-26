@@ -10,14 +10,15 @@ export async function globales(idEtablissement) {
     soumissions,
     attestations,
   ] = await Promise.all([
-    // Utilisateurs par rôle et par statut
+    // Utilisateurs (via la table de jointure)
     query(`
       SELECT
         COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE statut_compte = 'actif')::int AS actifs,
-        COUNT(*) FILTER (WHERE statut_compte = 'desactive')::int AS desactives
-      FROM utilisateur
-      WHERE id_etablissement = $1
+        COUNT(*) FILTER (WHERE u.statut_compte = 'actif')::int AS actifs,
+        COUNT(*) FILTER (WHERE u.statut_compte = 'desactive')::int AS desactives
+      FROM utilisateur u
+      JOIN utilisateur_etablissement_role uer ON u.id_utilisateur = uer.id_utilisateur
+      WHERE uer.id_etablissement = $1
     `, [idEtablissement]),
     
     // Formations
@@ -31,7 +32,7 @@ export async function globales(idEtablissement) {
       WHERE id_etablissement = $1
     `, [idEtablissement]),
     
-    // Inscriptions (via les sessions de l'école)
+    // Inscriptions
     query(`
       SELECT
         COUNT(i.id_inscription)::int AS total,
@@ -45,7 +46,7 @@ export async function globales(idEtablissement) {
       WHERE f.id_etablissement = $1
     `, [idEtablissement]),
     
-    // Modules (via les formations de l'école)
+    // Modules
     query(`
       SELECT
         COUNT(m.id_module)::int AS total,
@@ -56,7 +57,7 @@ export async function globales(idEtablissement) {
       WHERE f.id_etablissement = $1
     `, [idEtablissement]),
     
-    // Soumissions (via la chaîne inscription -> session -> formation)
+    // Soumissions
     query(`
       SELECT
         COUNT(s.id_soumission)::int AS total,
@@ -80,19 +81,18 @@ export async function globales(idEtablissement) {
     `, [idEtablissement]),
   ]);
 
-  // Nombre d'utilisateurs par rôle
+  // Nombre d'utilisateurs par rôle (via la table de jointure)
   const parRole = (
     await query(`
       SELECT r.nom_role AS role, 
-             (SELECT COUNT(*)::int FROM utilisateur_role ur 
-              JOIN utilisateur u ON ur.id_utilisateur = u.id_utilisateur 
-              WHERE ur.id_role = r.id_role AND u.id_etablissement = $1) AS nombre
+             (SELECT COUNT(*)::int FROM utilisateur_etablissement_role uer 
+              WHERE uer.id_role = r.id_role AND uer.id_etablissement = $1) AS nombre
       FROM role r
       ORDER BY r.nom_role
     `, [idEtablissement])
   ).rows;
 
-  // NOUVEAU : Top 5 des formations les plus populaires
+  // Top 5 des formations populaires
   const formationsPopulaires = (await query(`
     SELECT f.intitule, f.statut_formation, COUNT(i.id_inscription)::int AS nb_inscrits
     FROM formation f
@@ -112,6 +112,6 @@ export async function globales(idEtablissement) {
     soumissions: soumissions.rows[0],
     attestations: attestations.rows[0],
     parRole,
-    formationsPopulaires, // <-- On l'ajoute au retour
+    formationsPopulaires,
   };
 }

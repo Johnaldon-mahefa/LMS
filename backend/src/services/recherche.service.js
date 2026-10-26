@@ -1,69 +1,55 @@
-// Service : recherche globale (formations, modules, évaluations, utilisateurs selon le rôle).
 import { query } from "../config/db.js";
 
-export async function rechercher(terme, utilisateur) {
-  const q = `%${String(terme || "").trim().toLowerCase()}%`;
-  const estAdmin = utilisateur.roles.includes("administrateur");
-  const estFormateur = utilisateur.roles.includes("formateur");
-
-  const resultats = { formations: [], modules: [], evaluations: [], utilisateurs: [] };
-
-  // Formations : admin voit tout, sinon uniquement publiées
-  {
-    const filtre = estAdmin ? "" : "AND statut_formation = 'publiee'";
-    const { rows } = await query(
-      `SELECT id_formation, intitule, statut_formation
-       FROM formation
-       WHERE LOWER(intitule) LIKE $1 ${filtre}
-       ORDER BY intitule LIMIT 5`,
-      [q]
-    );
-    resultats.formations = rows;
+export async function rechercher(terme, idEtablissement, rolesUtilisateur) {
+  if (!terme || terme.trim().length < 2) {
+    return { formations: [], modules: [], evaluations: [], utilisateurs: [] };
   }
 
-  // Modules : uniquement pour admin/formateur
-  if (estAdmin || estFormateur) {
-    let filtre = "";
-    const params = [q];
-    if (estFormateur) {
-      filtre = "AND m.id_auteur = $2";
-      params.push(utilisateur.id);
-    }
-    const { rows } = await query(
-      `SELECT m.id_module, m.titre, m.statut_module, f.intitule AS formation
-       FROM module m
-       JOIN formation f ON f.id_formation = m.id_formation
-       WHERE LOWER(m.titre) LIKE $1 ${filtre}
-       ORDER BY m.titre LIMIT 5`,
-      params
-    );
-    resultats.modules = rows;
-  }
+  const q = `%${terme.trim()}%`;
+  const estAdmin = rolesUtilisateur.includes("administrateur");
 
-  // Évaluations : admin/formateur
-  if (estAdmin || estFormateur) {
-    const { rows } = await query(
-      `SELECT e.id_evaluation, e.intitule, m.id_module, m.titre AS module
-       FROM evaluation e
-       JOIN module m ON m.id_module = e.id_module
-       WHERE LOWER(e.intitule) LIKE $1
-       ORDER BY e.intitule LIMIT 5`,
-      [q]
-    );
-    resultats.evaluations = rows;
-  }
+  // 1. Recherche dans les formations (filtrées par école)
+  const formations = (await query(`
+    SELECT f.id_formation, f.intitule, f.statut_formation
+    FROM formation f
+    WHERE f.id_etablissement = $1 
+      AND f.intitule ILIKE $2
+    LIMIT 5
+  `, [idEtablissement, q])).rows;
 
-  // Utilisateurs : admin uniquement
+  // 2. Recherche dans les modules
+  const modules = (await query(`
+    SELECT m.id_module, m.titre, f.intitule AS formation
+    FROM module m
+    JOIN formation f ON m.id_formation = f.id_formation
+    WHERE f.id_etablissement = $1 
+      AND m.titre ILIKE $2
+    LIMIT 5
+  `, [idEtablissement, q])).rows;
+
+  // 3. Recherche dans les évaluations
+  const evaluations = (await query(`
+    SELECT e.id_evaluation, e.intitule, e.id_module, m.titre AS module
+    FROM evaluation e
+    JOIN module m ON e.id_module = m.id_module
+    JOIN formation f ON m.id_formation = f.id_formation
+    WHERE f.id_etablissement = $1 
+      AND e.intitule ILIKE $2
+    LIMIT 5
+  `, [idEtablissement, q])).rows;
+
+  // 4. Recherche dans les utilisateurs
+  let utilisateurs = [];
   if (estAdmin) {
-    const { rows } = await query(
-      `SELECT id_utilisateur, nom, prenom, identifiant
-       FROM utilisateur
-       WHERE LOWER(nom) LIKE $1 OR LOWER(prenom) LIKE $1 OR LOWER(identifiant) LIKE $1
-       ORDER BY nom, prenom LIMIT 5`,
-      [q]
-    );
-    resultats.utilisateurs = rows;
+    utilisateurs = (await query(`
+      SELECT u.id_utilisateur, u.nom, u.prenom, u.identifiant
+      FROM utilisateur u
+      JOIN utilisateur_etablissement_role uer ON u.id_utilisateur = uer.id_utilisateur
+      WHERE uer.id_etablissement = $1 
+        AND (u.nom ILIKE $2 OR u.prenom ILIKE $2 OR u.identifiant ILIKE $2)
+      LIMIT 5
+    `, [idEtablissement, q])).rows;
   }
 
-  return resultats;
+  return { formations, modules, evaluations, utilisateurs };
 }
