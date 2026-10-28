@@ -2,6 +2,7 @@ import { withTransaction } from "../config/db.js";
 import { AppError } from "../utils/AppError.js";
 import bcrypt from "bcryptjs";
 
+// 1. Lister toutes les écoles (établissements)
 export async function getEcolesPubliques() {
   return await withTransaction(async (client) => {
     const res = await client.query(`
@@ -15,6 +16,7 @@ export async function getEcolesPubliques() {
   });
 }
 
+// 2. Lister les formations d'une école spécifique
 export async function getFormationsPubliques(idEtablissement) {
   return await withTransaction(async (client) => {
     const res = await client.query(`
@@ -32,6 +34,7 @@ export async function getFormationsPubliques(idEtablissement) {
   });
 }
 
+// 3. Inscription publique d'un apprenant
 export async function inscrireApprenantPublic({ nom, prenom, email, motDePasse, codeAccesEcole }) {
   if (!nom || !prenom || !email || !motDePasse || !codeAccesEcole) {
     throw new AppError(400, "Tous les champs sont obligatoires.");
@@ -90,5 +93,23 @@ export async function inscrireApprenantPublic({ nom, prenom, email, motDePasse, 
         : `Vous avez rejoint l'école ${nomEcole} avec succès. Connectez-vous avec votre mot de passe.`,
       isNewUser
     };
+  });
+}
+
+// 4. NOUVELLE FONCTION : Vérifier une attestation par son numéro
+export async function verifierAttestation(numero) {
+  return await withTransaction(async (client) => {
+    const res = await client.query(`
+      SELECT a.numero_attestation, a.date_delivrance, 
+             u.prenom, u.nom, f.intitule AS formation
+      FROM attestation a
+      JOIN inscription i ON a.id_inscription = i.id_inscription
+      JOIN utilisateur u ON i.id_utilisateur = u.id_utilisateur
+      JOIN session s ON i.id_session = s.id_session
+      JOIN formation f ON s.id_formation = f.id_formation
+      WHERE a.numero_attestation = $1
+    `, [numero]);
+    if (res.rowCount === 0) throw new AppError(404, "Attestation introuvable ou invalide.");
+    return res.rows[0];
   });
 }

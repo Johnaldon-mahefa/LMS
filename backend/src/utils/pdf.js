@@ -1,8 +1,10 @@
 // Génération du document PDF de l'attestation (RG14).
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode"; // <-- NOUVEL IMPORT
 
-export function genererAttestationPdf({ numero, dateDelivrance, apprenant, formation, dateDebut, dateFin }) {
-  return new Promise((resolve, reject) => {
+// La fonction est maintenant ASYNC pour pouvoir générer le QR Code
+export async function genererAttestationPdf({ numero, dateDelivrance, apprenant, formation, dateDebut, dateFin, qrCodeUrl }) {
+  return new Promise(async (resolve, reject) => {
     try {
       // Format paysage (A4)
       const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 50 });
@@ -62,15 +64,30 @@ export function genererAttestationPdf({ numero, dateDelivrance, apprenant, forma
 
       doc.moveDown(3);
 
-      // 6. PIED DE PAGE (Numéro et signature)
+      // 6. PIED DE PAGE (Numéro, signature et QR CODE)
       const bottomY = pageHeight - 120;
 
-      // Numéro à gauche
+      // --- AJOUT DU QR CODE ---
+      if (qrCodeUrl) {
+        // Génère l'image du QR Code
+        const qrBuffer = await QRCode.toBuffer(qrCodeUrl, { width: 150, margin: 1 });
+        
+        // On place le QR Code en bas à gauche, au-dessus du numéro d'attestation
+        // X = 60 (marge gauche), Y = bottomY - 100 (pour remonter un peu)
+        doc.image(qrBuffer, 60, bottomY - 100, { width: 80 });
+        
+        // Petit texte sous le QR Code
+        doc.font("Helvetica").fontSize(8).fillColor("#94a3b8")
+           .text("Scannez pour vérifier", 50, bottomY - 15, { width: 100, align: "center" });
+      }
+      // -------------------------
+
+      // Numéro à gauche (sous le QR code)
       doc.font("Helvetica").fontSize(11).fillColor("#94a3b8")
-         .text(`N° d'attestation : ${numero}`, 60, bottomY);
+         .text(`N° d'attestation : ${numero}`, 60, bottomY + 10);
       
       doc.font("Helvetica").fontSize(11).fillColor("#94a3b8")
-         .text(`Délivrée le : ${new Date(dateDelivrance).toLocaleDateString('fr-FR')}`, 60, bottomY + 15);
+         .text(`Délivrée le : ${new Date(dateDelivrance).toLocaleDateString('fr-FR')}`, 60, bottomY + 25);
 
       // Signature à droite
       doc.font("Helvetica").fontSize(12).fillColor("#1e293b")

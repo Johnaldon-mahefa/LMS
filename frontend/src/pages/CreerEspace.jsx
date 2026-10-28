@@ -52,7 +52,7 @@ export default function CreerEspace() {
       <div className="position-absolute top-0 end-0 p-4">
         <button 
           type="button" 
-          className="btn topbar-icon-btn shadow-sm bg-white dark-bg-transparent" 
+          className="topbar-icon-btn" // <-- ON GARDE JUSTE CETTE CLASSE
           onClick={() => setIsDark(!isDark)}
           title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
         >

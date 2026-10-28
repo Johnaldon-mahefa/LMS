@@ -21,7 +21,8 @@ import QcmEditor from "./pages/QcmEditor.jsx";
 import QcmPasser from "./pages/QcmPasser.jsx";
 import Formateurs from "./pages/Formateurs.jsx";
 import MonAbonnement from "./pages/MonAbonnement.jsx";
-import Decouvrir from "./pages/Decouvrir.jsx";
+import Decouvrir from "./pages/Decouvrir.jsx"; 
+import VerifierAttestation from "./pages/VerifierAttestation.jsx"; // <-- NOUVEL IMPORT
 
 const page = (roles, element) => <ProtectedRoute roles={roles}>{element}</ProtectedRoute>;
 
@@ -29,13 +30,12 @@ export default function App() {
   return (
     <Routes>
       {/* --- ROUTES PUBLIQUES --- */}
+      <Route path="/decouvrir" element={<Decouvrir />} />
       <Route path="/connexion" element={<Login />} />
-      <Route path="/login" element={<Login />} /> {/* Ajouté pour OAuth */}
+      <Route path="/login" element={<Login />} />
       <Route path="/creer-espace" element={<CreerEspace />} />
-      <Route path="/decouvrir" element={<Decouvrir />} /> 
-
-
-
+      <Route path="/verifier-attestation/:numero" element={<VerifierAttestation />} /> {/* <-- NOUVELLE ROUTE */}
+      
       {/* --- ROUTES PROTÉGÉES (Layout) --- */}
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Accueil />} />

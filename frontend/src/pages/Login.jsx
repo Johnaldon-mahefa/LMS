@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { setToken } from "../api/client.js";
+import { Turnstile } from "@marsidev/react-turnstile"; // <-- IMPORT DU WIDGET
 
 export default function Login() {
   const [identifiant, setIdentifiant] = useState("");
@@ -10,14 +11,15 @@ export default function Login() {
   const [chargement, setChargement] = useState(false);
   const [choixEcoles, setChoixEcoles] = useState(null);
   
+  // ÉTAT POUR LE CAPTCHA
+  const [captchaToken, setCaptchaToken] = useState(null);
+
   const { connecter, connecterEcole } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // GESTION DU MODE SOMBRE
-  const [isDark, setIsDark] = useState(() => {
-    return localStorage.getItem("theme") === "dark";
-  });
+  // MODE SOMBRE
+  const [isDark, setIsDark] = useState(() => localStorage.getItem("theme") === "dark");
 
   useEffect(() => {
     if (isDark) {
@@ -29,7 +31,7 @@ export default function Login() {
     }
   }, [isDark]);
 
-  // GESTION DU RETOUR OAUTH (Google / Facebook)
+  // GESTION DU RETOUR OAUTH
   useEffect(() => {
     const oauthError = searchParams.get("oauth_error");
     const oauthToken = searchParams.get("oauth_token");
@@ -63,9 +65,17 @@ export default function Login() {
   async function submit(e) {
     e.preventDefault();
     setErreur("");
+    
+    // On vérifie que le CAPTCHA est validé
+    if (!captchaToken) {
+      setErreur("Veuillez valider le CAPTCHA avant de continuer.");
+      return;
+    }
+
     setChargement(true);
     try {
-      const res = await connecter(identifiant, motDePasse);
+      // On passe le captchaToken à la fonction connecter
+      const res = await connecter(identifiant, motDePasse, captchaToken);
       if (res.choix_ecole_requis) {
         setChoixEcoles(res);
       } else {
@@ -96,13 +106,12 @@ export default function Login() {
   return (
     <div className="connexion-page position-relative">
       
-      {/* BOUTON MODE SOMBRE (En haut à droite) */}
+      {/* BOUTON MODE SOMBRE */}
       <div className="position-absolute top-0 end-0 p-4">
         <button 
           type="button" 
           className="topbar-icon-btn" 
           onClick={() => setIsDark(!isDark)}
-          title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
         >
           <i className={`bi ${isDark ? 'bi-sun-fill text-warning' : 'bi-moon-fill'}`}></i>
         </button>
@@ -163,7 +172,19 @@ export default function Login() {
                 required 
               />
             </div>
-            <button type="submit" className="btn btn-primary w-100" disabled={chargement}>
+
+            {/* WIDGET CLOUDFLARE TURNSTILE */}
+            <div className="mb-4 d-flex justify-content-center">
+              <Turnstile
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                onSuccess={(token) => setCaptchaToken(token)}
+                onError={() => setErreur("Erreur de chargement du CAPTCHA.")}
+                onExpire={() => setCaptchaToken(null)}
+                options={{ theme: isDark ? "dark" : "light" }}
+              />
+            </div>
+
+            <button type="submit" className="btn btn-primary w-100" disabled={chargement || !captchaToken}>
               {chargement ? "Connexion en cours..." : "Se connecter"}
             </button>
 

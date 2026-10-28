@@ -8,7 +8,7 @@ import * as Tentative from "../models/tentative.model.js";
 import * as Attestation from "../models/attestation.model.js";
 import * as Session from "../models/session.model.js";
 import * as Utilisateur from "../models/utilisateur.model.js";
-import * as Formation from "../models/formation.model.js"; // <-- AJOUT
+import * as Formation from "../models/formation.model.js";
 import * as Mailer from "./mailer.service.js";
 import { emailAttestation } from "../utils/emailTemplates.js";
 import { env } from "../config/env.js";
@@ -116,15 +116,19 @@ export async function attestationPdf(idInscription, idApprenant) {
   const inscription = await inscriptionDeLApprenant(idInscription, idApprenant);
   const attestation = await Attestation.findByInscription(idInscription);
   if (!attestation) throw new AppError(404, "Aucune attestation n'a encore été délivrée.");
+  
+  // NOUVEAU : On prépare l'URL de vérification pour le QR Code
+  const urlVerification = `${process.env.FRONTEND_URL || "http://localhost:5173"}/verifier-attestation/${attestation.numero_attestation}`;
+
   const pdf = await genererAttestationPdf({
     numero: attestation.numero_attestation, dateDelivrance: attestation.date_delivrance,
     apprenant: `${inscription.prenom} ${inscription.nom}`, formation: inscription.formation,
     dateDebut: inscription.date_debut, dateFin: inscription.date_fin,
+    qrCodeUrl: urlVerification, // <-- NOUVEAU : On passe l'URL à la fonction PDF
   });
   return { pdf, nom: `${attestation.numero_attestation}.pdf` };
 }
 
-// MULTI-TENANT : Filtre par établissement
 export const sessionsDuFormateur = (idFormateur, idEtablissement) => Session.findByFormateur(idFormateur, idEtablissement);
 
 export async function progressionSession(idSession, idFormateur, idEtablissement) {
@@ -134,7 +138,6 @@ export async function progressionSession(idSession, idFormateur, idEtablissement
   const session = await Session.findById(idSession);
   const formation = await Formation.findById(session.id_formation);
   
-  // MULTI-TENANT : On vérifie que la session appartient à l'école active
   if (formation.id_etablissement !== idEtablissement) 
     throw new AppError(403, "Cette session n'appartient pas à votre établissement actuel.");
 

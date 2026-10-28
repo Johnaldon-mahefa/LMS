@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // <-- AJOUT DE useRef
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client.js";
 import { useToast } from "../context/ToastContext.jsx";
@@ -6,15 +6,16 @@ import { useToast } from "../context/ToastContext.jsx";
 export default function Decouvrir() {
   const toast = useToast();
   const navigate = useNavigate();
+  const formationsRef = useRef(null); // <-- RÉFÉRENCE POUR LE SCROLL
 
   const [ecoles, setEcoles] = useState([]);
   const [ecoleSelectionnee, setEcoleSelectionnee] = useState(null);
   const [formations, setFormations] = useState([]);
+  
   const [formationOuverte, setFormationOuverte] = useState(null);
   const [afficherInscription, setAfficherInscription] = useState(false);
   const [formInscription, setFormInscription] = useState({ nom: "", prenom: "", email: "", motDePasse: "" });
 
-  // GESTION DU MODE SOMBRE
   const [isDark, setIsDark] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
@@ -37,8 +38,29 @@ export default function Decouvrir() {
     setEcoleSelectionnee(ecole);
     setFormationOuverte(null); 
     api(`/public/ecoles/${ecole.id_etablissement}/formations`)
-      .then(setFormations)
+      .then((data) => {
+        setFormations(data);
+        // SCROLL AUTOMATIQUE vers la section des formations
+        setTimeout(() => {
+          formationsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      })
       .catch(() => toast.erreur("Erreur de chargement des formations."));
+  };
+
+  const toggleProgramme = (idFormation) => {
+    if (formationOuverte === idFormation) {
+      setFormationOuverte(null);
+    } else {
+      setFormationOuverte(idFormation);
+      // SCROLL AUTOMATIQUE vers la carte ouverte
+      setTimeout(() => {
+        const cardElement = document.getElementById(`formation-${idFormation}`);
+        if (cardElement) {
+          cardElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 150); // Un petit délai pour laisser le temps à la carte de s'agrandir
+    }
   };
 
   async function soumettreInscription(e) {
@@ -58,7 +80,6 @@ export default function Decouvrir() {
 
   return (
     <div className="landing-page">
-      
       {/* 1. NAVBAR PUBLIQUE */}
       <nav className="landing-navbar">
         <div className="container d-flex justify-content-between align-items-center">
@@ -67,17 +88,15 @@ export default function Decouvrir() {
             <span className="fw-bold fs-4" style={{ letterSpacing: '-0.5px' }}>Inno-v T LMS</span>
           </Link>
           <div className="d-flex gap-3 align-items-center">
-            {/* BOUTON MODE SOMBRE */}
             <button 
               type="button" 
               className="btn topbar-icon-btn" 
               onClick={() => setIsDark(!isDark)}
-              title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
             >
               <i className={`bi ${isDark ? 'bi-sun-fill text-warning' : 'bi-moon-fill'}`}></i>
             </button>
             <Link to="/connexion" className="btn btn-ghost">Connexion</Link>
-            <Link to="/creer-espace" className="btn btn-primary">Créer mon école</Link>
+            <Link to="/creer-espace" className="btn btn-ghost">Créer mon école</Link>
           </div>
         </div>
       </nav>
@@ -99,8 +118,10 @@ export default function Decouvrir() {
       {/* 3. CATALOGUE */}
       <div className="container py-5 my-4">
         <div className="row g-5">
-          <div className="col-12 col-lg-4">
-            <h4 className="fw-bold mb-4">Nos Écoles Partenaires</h4>
+          
+          {/* COLONNE GAUCHE : ÉCOLES */}
+          <div className="col-12 col-lg-4 col-xl-3">
+            <h4 className="fw-bold mb-4">Nos Écoles</h4>
             <div className="d-flex flex-column gap-3">
               {ecoles.map((ecole) => (
                 <div 
@@ -110,19 +131,21 @@ export default function Decouvrir() {
                 >
                   <div className="d-flex justify-content-between align-items-center">
                     <div>
-                      <h5 className="fw-bold mb-1 text-dark">{ecole.nom}</h5>
+                      <h5 className="fw-bold mb-1 text-dark" style={{ fontSize: '16px' }}>{ecole.nom}</h5>
                       <span className="text-muted small"><i className="bi bi-collection-play me-1"></i> {ecole.nb_formations} formation(s)</span>
                     </div>
-                    <i className="bi bi-arrow-right fs-4 text-muted"></i>
+                    <i className={`bi bi-chevron-right ${ecoleSelectionnee?.id_etablissement === ecole.id_etablissement ? 'text-primary' : 'text-muted'}`}></i>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="col-12 col-lg-8">
+          {/* COLONNE DROITE : FORMATIONS */}
+          {/* On attache la référence formationsRef ici */}
+          <div className="col-12 col-lg-8 col-xl-9" ref={formationsRef} style={{ scrollMarginTop: '100px' }}>
             {ecoleSelectionnee ? (
-              <div className="ps-lg-4">
+              <div>
                 <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                   <h4 className="fw-bold mb-0">Cursus chez <span className="text-primary">{ecoleSelectionnee.nom}</span></h4>
                   <button className="btn btn-primary px-4" onClick={() => setAfficherInscription(true)}>
@@ -137,18 +160,24 @@ export default function Decouvrir() {
                     {formations.map((f) => {
                       const estOuverte = formationOuverte === f.id_formation;
                       return (
-                        <div key={f.id_formation} className="col-12 col-md-6">
+                        // On ajoute un ID unique pour cibler la carte lors du scroll
+                        <div key={f.id_formation} className="col-12 col-md-6 col-xl-4" id={`formation-${f.id_formation}`} style={{ scrollMarginTop: '100px' }}>
                           <div className="card course-card">
                             <div className="card-body p-4 d-flex flex-column">
+                              
                               <div className="d-flex justify-content-between align-items-start mb-3">
                                 <div className="course-icon"><i className="bi bi-journal-code"></i></div>
                                 <span className="badge bg-light text-dark border">Certificat</span>
                               </div>
-                              <h5 className="fw-bold text-dark mb-2">{f.intitule}</h5>
-                              <p className="text-muted small mb-4">{f.description || "Aucune description fournie pour ce cours."}</p>
                               
-                              <div className="d-flex gap-3 text-muted small mb-3 pt-3 border-top mt-auto">
-                                <span><i className="bi bi-clock me-1"></i> {f.duree || "N/A"} heures</span>
+                              <h5 className="fw-bold text-dark mb-2" style={{ lineHeight: 1.4 }}>{f.intitule}</h5>
+                              <p className="text-muted small mb-4 flex-grow-1">{f.description || "Aucune description fournie pour ce cours."}</p>
+                              
+                              <div className="d-flex gap-3 text-muted small mb-3 pt-3 border-top">
+                                <span>
+                                  <i className="bi bi-clock me-1"></i> 
+                                  {f.duree && Number(f.duree) > 0 ? `${f.duree} heures` : "Durée libre"}
+                                </span>
                                 <span><i className="bi bi-play-btn me-1"></i> {f.nb_modules} modules</span>
                               </div>
 
@@ -156,19 +185,20 @@ export default function Decouvrir() {
                                 <div className="mb-3">
                                   <div 
                                     className="btn-programme"
-                                    onClick={() => setFormationOuverte(estOuverte ? null : f.id_formation)}
+                                    onClick={() => toggleProgramme(f.id_formation)}
                                     role="button"
                                   >
                                     {estOuverte ? "Masquer le programme" : "Voir le programme"} 
-                                    <i className={`bi bi-chevron-${estOuverte ? 'up' : 'down'} ms-1`}></i>
+                                    <i className={`bi bi-chevron-${estOuverte ? 'up' : 'down'} ms-1`} style={{ fontSize: '10px' }}></i>
                                   </div>
                                   
                                   {estOuverte && (
-                                    <div className="mt-2 module-list">
+                                    <div className="mt-3 module-list">
                                       <ul className="list-unstyled mb-0">
                                         {f.modules.map((titreModule, idx) => (
-                                          <li key={idx} className="d-flex align-items-center gap-2 mb-2 small text-dark">
-                                            <i className="bi bi-play-circle-fill text-primary"></i> {titreModule}
+                                          <li key={idx} className="d-flex align-items-start gap-2 mb-2 small text-dark">
+                                            <i className="bi bi-play-circle-fill text-primary mt-1" style={{ fontSize: '12px' }}></i> 
+                                            <span>{titreModule}</span>
                                           </li>
                                         ))}
                                       </ul>
@@ -177,7 +207,7 @@ export default function Decouvrir() {
                                 </div>
                               )}
                               
-                              <button className="btn btn-outline-primary w-100" onClick={() => setAfficherInscription(true)}>
+                              <button className="btn btn-outline-primary w-100 mt-auto" onClick={() => setAfficherInscription(true)}>
                                 S'inscrire à ce cours
                               </button>
                             </div>
@@ -189,7 +219,7 @@ export default function Decouvrir() {
                 )}
               </div>
             ) : (
-              <div className="h-100 d-flex flex-column align-items-center justify-content-center text-muted" style={{ minHeight: '400px' }}>
+              <div className="h-100 d-flex flex-column align-items-center justify-content-center text-muted" style={{ minHeight: '400px', border: '2px dashed #e2e8f0', borderRadius: '24px' }}>
                 <i className="bi bi-building fs-1 mb-3 text-primary opacity-50"></i>
                 <h4 className="fw-bold text-dark">Sélectionnez une école</h4>
                 <p>Cliquez sur une école à gauche pour voir ses formations.</p>

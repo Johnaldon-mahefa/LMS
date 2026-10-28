@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import Cloche from "./Cloche.jsx";
 import Recherche from "./Recherche.jsx";
+import ChatIA from "./ChatIA.jsx"; // <-- IMPORT DU CHAT
 
 const MENUS = {
   administrateur: [
@@ -29,6 +30,7 @@ const MENUS = {
 export default function Layout() {
   const { utilisateur, deconnecter, aAcces } = useAuth();
   const [menuOuvert, setMenuOuvert] = useState(false);
+  const [chatOuvert, setChatOuvert] = useState(false); // <-- NOUVEL ÉTAT
   const lieu = useLocation();
 
   const [isDark, setIsDark] = useState(() => {
@@ -109,12 +111,24 @@ export default function Layout() {
             <i className="bi bi-list"></i>
           </button>
           
-          <div className="flex-grow-1">
+          <div className="flex-grow-1 d-flex align-items-center">
             <Recherche />
           </div>
           
-          {/* BOUTONS À DROITE (Mode sombre + Cloche) */}
+          {/* BOUTONS À DROITE (IA + Mode sombre + Cloche) */}
           <div className="d-flex align-items-center gap-2">
+            
+            {/* BOUTON IA */}
+            <button 
+              type="button" 
+              className={`topbar-icon-btn ${chatOuvert ? 'active' : ''}`} 
+              onClick={() => setChatOuvert(!chatOuvert)}
+              title="Assistant IA"
+            >
+              <i className="bi bi-robot"></i>
+            </button>
+
+            {/* BOUTON MODE SOMBRE */}
             <button 
               type="button" 
               className="topbar-icon-btn" 
@@ -124,6 +138,7 @@ export default function Layout() {
               <i className={`bi ${isDark ? 'bi-sun-fill text-warning' : 'bi-moon-fill'}`}></i>
             </button>
             
+            {/* CLOCHE */}
             <Cloche />
           </div>
         </header>
@@ -132,6 +147,9 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* COMPOSANT CHAT IA (Le bouton est dans le topbar, la fenêtre s'affiche par-dessus) */}
+      <ChatIA estOuvert={chatOuvert} setEstOuvert={setChatOuvert} />
     </div>
   );
 }

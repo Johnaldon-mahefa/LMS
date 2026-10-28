@@ -30,12 +30,8 @@ export function AuthProvider({ children }) {
          }
       })
       .catch((err) => {
-        console.error("Erreur de récupération du profil:", err);
-        if (err.message.includes("communication avec le serveur") || err.name === "TypeError") {
-           console.warn("Erreur réseau temporaire, le token est conservé.");
-        } else {
-           setToken(null);
-        }
+        console.error("Erreur profil:", err);
+        if (!err.message.includes("communication")) setToken(null);
       })
       .finally(() => setChargement(false));
   }, []);
@@ -45,19 +41,28 @@ export function AuthProvider({ children }) {
     try {
       const u = await api("/auth/moi");
       if (u.features) setFeatures(u.features);
-    } catch (e) {
-      console.error("Erreur rafraîchissement features:", e);
-    }
+    } catch (e) {}
   }
 
-  async function connecter(identifiant, motDePasse) {
+  // MISE À JOUR : On ajoute captchaToken
+  async function connecter(identifiant, motDePasse, captchaToken) {
     setToken(null);
     setUtilisateur(null);
     setFeatures([]);
-    const res = await api("/auth/login", { method: "POST", body: { identifiant, motDePasse } });
+    
+    const res = await api("/auth/login", { 
+      method: "POST", 
+      body: { 
+        identifiant, 
+        motDePasse,
+        "cf-turnstile-response": captchaToken // <-- On envoie le token
+      } 
+    });
+    
     if (res.choix_ecole_requis) {
       return { choix_ecole_requis: true, ecoles: res.ecoles, idUtilisateur: res.idUtilisateur };
     }
+    
     setToken(res.token);
     setUtilisateur(res.utilisateur);
     if (res.features) setFeatures(res.features);
