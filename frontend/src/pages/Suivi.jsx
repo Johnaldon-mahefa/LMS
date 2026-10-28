@@ -4,7 +4,6 @@ import { useToast } from "../context/ToastContext.jsx";
 import { exporterCSV, exporterPDF } from "../utils/export.js";
 import Loading from "../components/Loading.jsx";
 
-// Définition des colonnes pour l'export CSV/PDF
 const COLONNES_EXPORT = [
   { cle: "nom_complet", titre: "Apprenant" },
   { cle: "progression", titre: "Progression (%)" },
@@ -41,7 +40,6 @@ export default function Suivi() {
   const ouvrirApprenant = (id) =>
     api(`/formateur/inscriptions/${id}/detail`).then(setDetail).catch((e) => toast.erreur(e.message));
 
-  // --- FONCTIONS D'EXPORT ---
   function preparerDonnees() {
     return suivi.apprenants.map(a => ({
       ...a,
@@ -71,31 +69,41 @@ export default function Suivi() {
 
       <div className="row g-4">
         {/* COLONNE GAUCHE : Sessions */}
-        <div className="col-12 col-lg-4">
-          <div className="card shadow-sm border-0">
-            <div className="card-body">
-              <h5 className="card-title fw-bold mb-3">Mes sessions ({sessions.length})</h5>
+        <div className="col-12 col-lg-4 col-xl-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body p-3">
+              <h5 className="fw-bold mb-3 text-muted small text-uppercase">
+                Mes sessions ({sessions.length})
+              </h5>
+              
               {sessions.length === 0 ? (
-                <p className="text-muted text-center py-3">Aucune session affectée.</p>
+                <div className="text-center py-5">
+                  <i className="bi bi-calendar-x fs-1 text-muted mb-3 d-block"></i>
+                  <h6 className="text-muted">Aucune session affectée.</h6>
+                </div>
               ) : (
-                <div className="list-group">
+                <div className="list-group list-group-flush">
                   {sessions.map((s) => (
                     <button
                       key={s.id_session}
                       type="button"
                       onClick={() => ouvrirSession(s)}
-                      className={`list-group-item list-group-item-action ${courante?.id_session === s.id_session ? 'active' : ''}`}
+                      className={`list-group-item list-group-item-action border-0 rounded mb-1 text-start ${
+                        courante?.id_session === s.id_session 
+                          ? "active bg-primary text-white" 
+                          : "bg-light text-dark"
+                      }`}
+                      style={{ transition: 'all 0.2s' }}
                     >
-                      <div className="d-flex justify-content-between align-items-center">
-                        <strong className="mb-1">{s.formation}</strong>
-                      </div>
-                      <small className={courante?.id_session === s.id_session ? "text-white-50" : "text-muted"}>
+                      <div className="fw-bold mb-1">{s.formation}</div>
+                      <div className="small" style={{ opacity: 0.8 }}>
+                        <i className="bi bi-calendar-event me-1"></i>
                         Du {new Date(s.date_debut).toLocaleDateString('fr-FR')} au {new Date(s.date_fin).toLocaleDateString('fr-FR')}
-                      </small>
-                      <br />
-                      <small className={courante?.id_session === s.id_session ? "text-white-50" : "text-muted"}>
+                      </div>
+                      <div className="small mt-1" style={{ opacity: 0.8 }}>
+                        <i className="bi bi-people me-1"></i>
                         {s.capacite_max - s.places_restantes} apprenant(s) inscrit(s)
-                      </small>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -105,21 +113,22 @@ export default function Suivi() {
         </div>
 
         {/* COLONNE DROITE : Suivi et Détails */}
-        <div className="col-12 col-lg-8">
+        <div className="col-12 col-lg-8 col-xl-9">
           {courante ? (
             <>
-              <div className="card shadow-sm border-0 mb-4">
-                <div className="card-body">
+              <div className="card border-0 shadow-sm mb-4">
+                <div className="card-body p-4">
                   <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                    <h5 className="card-title fw-bold mb-0">Apprenants de « {courante.formation} »</h5>
+                    <h5 className="fw-bold mb-0">
+                      Apprenants de <span className="text-primary">« {courante.formation} »</span>
+                    </h5>
                     
-                    {/* BOUTONS D'EXPORT */}
                     {suivi && suivi.apprenants.length > 0 && (
                       <div className="d-flex gap-2">
-                        <button type="button" className="btn btn-outline-success btn-sm" onClick={exporterEnCSV}>
+                        <button type="button" className="btn-ghost" onClick={exporterEnCSV}>
                           <i className="bi bi-file-earmark-spreadsheet me-1"></i> CSV
                         </button>
-                        <button type="button" className="btn btn-outline-danger btn-sm" onClick={exporterEnPDF}>
+                        <button type="button" className="btn-ghost" onClick={exporterEnPDF}>
                           <i className="bi bi-file-earmark-pdf me-1"></i> PDF
                         </button>
                       </div>
@@ -132,8 +141,8 @@ export default function Suivi() {
                     <p className="text-muted text-center py-4">Aucun apprenant inscrit à cette session.</p>
                   ) : (
                     <div className="table-responsive">
-                      <table className="table table-hover align-middle">
-                        <thead className="table-light">
+                      <table className="table table-hover align-middle mb-0">
+                        <thead className="text-muted small text-uppercase">
                           <tr>
                             <th>Apprenant</th>
                             <th>Progression</th>
@@ -144,17 +153,17 @@ export default function Suivi() {
                         <tbody>
                           {suivi.apprenants.map((a) => (
                             <tr key={a.id_inscription}>
-                              <td className="fw-semibold">{a.prenom} {a.nom}</td>
+                              <td className="fw-bold text-dark">{a.prenom} {a.nom}</td>
                               <td>
                                 <div className="d-flex align-items-center gap-2">
-                                  <div className="progress flex-grow-1" style={{ height: "6px", minWidth: "80px" }}>
+                                  <div className="progress flex-grow-1" style={{ height: "8px", borderRadius: "4px" }}>
                                     <div 
                                       className={`progress-bar ${a.progression === 100 ? 'bg-success' : 'bg-primary'}`} 
                                       role="progressbar" 
-                                      style={{ width: `${a.progression}%` }}
+                                      style={{ width: `${a.progression}%`, borderRadius: "4px" }}
                                     ></div>
                                   </div>
-                                  <span className="small fw-bold">{a.progression}%</span>
+                                  <span className="small fw-bold" style={{ minWidth: "35px" }}>{a.progression}%</span>
                                 </div>
                               </td>
                               <td>
@@ -167,10 +176,10 @@ export default function Suivi() {
                               <td className="text-end">
                                 <button 
                                   type="button" 
-                                  className="btn btn-sm btn-outline-primary" 
+                                  className="btn-ghost" 
                                   onClick={() => ouvrirApprenant(a.id_inscription)}
                                 >
-                                  Détail
+                                  Détail <i className="bi bi-arrow-right ms-1"></i>
                                 </button>
                               </td>
                             </tr>
@@ -184,48 +193,56 @@ export default function Suivi() {
 
               {/* SECTION DÉTAIL */}
               {detail && (
-                <div className="card shadow-sm border-0 border-start border-4 border-primary">
-                  <div className="card-body">
-                    <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="card border-0 shadow-sm border-start border-4 border-primary">
+                  <div className="card-body p-4">
+                    <div className="d-flex justify-content-between align-items-center mb-4">
                       <h5 className="fw-bold mb-0">
-                        Détail : {detail.inscription.prenom} {detail.inscription.nom} ({detail.progression}%)
+                        Détail : <span className="text-primary">{detail.inscription.prenom} {detail.inscription.nom}</span>
+                        <span className="badge bg-light text-dark border ms-2">{detail.progression}%</span>
                       </h5>
-                      <button type="button" className="btn-close" onClick={() => setDetail(null)}></button>
+                      <button type="button" className="btn-ghost-danger" onClick={() => setDetail(null)}>
+                        <i className="bi bi-x-lg"></i>
+                      </button>
                     </div>
                     
-                    {detail.modules.map((m) => (
-                      <div key={m.id_module} className="mb-3 p-3 bg-light rounded">
-                        <h6 className="fw-bold">
-                          {m.titre} 
-                          <span className={`badge ms-2 bg-${m.valide ? "success" : "warning"}`}>
-                            {m.valide ? "Validé" : "Non validé"}
-                          </span>
-                        </h6>
-                        <ul className="list-unstyled mb-0 mt-2">
-                          {m.evaluations.map((e) => (
-                            <li key={e.id_evaluation} className="small text-muted mb-1">
-                              <i className="bi bi-dot"></i> {e.intitule} : 
-                              {e.meilleur_score !== null && e.meilleur_score !== undefined && (
-                                <span className="text-success fw-bold ms-1">QCM {e.meilleur_score}/{e.note_maximale}</span>
-                              )}
-                              {e.statut === "corrigee" ? (
-                                <span className="text-primary fw-bold ms-1">PDF {e.note}/{e.note_maximale}</span>
-                              ) : e.statut === "soumise" ? (
-                                <span className="text-warning ms-1">PDF en attente</span>
-                              ) : (
-                                <span className="text-muted ms-1">PDF non déposé</span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
+                    <div className="row g-3">
+                      {detail.modules.map((m) => (
+                        <div key={m.id_module} className="col-12">
+                          <div className={`p-3 rounded-3 border ${m.valide ? 'bg-success bg-opacity-10 border-success' : 'bg-light border-warning'}`}>
+                            <h6 className="fw-bold mb-2 d-flex justify-content-between align-items-center">
+                              {m.titre} 
+                              <span className={`badge ${m.valide ? "bg-success" : "bg-warning text-dark"}`}>
+                                {m.valide ? "Validé" : "Non validé"}
+                              </span>
+                            </h6>
+                            <ul className="list-unstyled mb-0 mt-2 ms-1">
+                              {m.evaluations.map((e) => (
+                                <li key={e.id_evaluation} className="small text-muted mb-1 d-flex align-items-center flex-wrap gap-2">
+                                  <span className="text-dark fw-semibold">{e.intitule}</span>
+                                  <span>:</span>
+                                  {e.meilleur_score !== null && e.meilleur_score !== undefined && (
+                                    <span className="badge bg-primary bg-opacity-75 text-white">QCM {e.meilleur_score}/{e.note_maximale}</span>
+                                  )}
+                                  {e.statut === "corrigee" ? (
+                                    <span className="badge bg-success">PDF {e.note}/{e.note_maximale}</span>
+                                  ) : e.statut === "soumise" ? (
+                                    <span className="badge bg-warning text-dark">PDF en attente</span>
+                                  ) : (
+                                    <span className="badge bg-secondary">PDF non déposé</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
             </>
           ) : (
-            <div className="card shadow-sm border-0 h-100 d-flex align-items-center justify-content-center" style={{ minHeight: "300px" }}>
+            <div className="card border-0 shadow-sm h-100 d-flex align-items-center justify-content-center" style={{ minHeight: "300px" }}>
               <div className="text-center text-muted">
                 <i className="bi bi-arrow-left-circle fs-1 mb-3"></i>
                 <h5>Sélectionnez une session</h5>

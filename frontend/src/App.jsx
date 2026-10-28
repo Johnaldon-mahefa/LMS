@@ -3,7 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Login from "./pages/Login.jsx";
-import CreerEspace from "./pages/CreerEspace.jsx"; // <-- NOUVEL IMPORT
+import CreerEspace from "./pages/CreerEspace.jsx";
 import Accueil from "./pages/Accueil.jsx";
 import Statistiques from "./pages/Statistiques.jsx";
 import Utilisateurs from "./pages/Utilisateurs.jsx";
@@ -21,6 +21,7 @@ import QcmEditor from "./pages/QcmEditor.jsx";
 import QcmPasser from "./pages/QcmPasser.jsx";
 import Formateurs from "./pages/Formateurs.jsx";
 import MonAbonnement from "./pages/MonAbonnement.jsx";
+import Decouvrir from "./pages/Decouvrir.jsx";
 
 const page = (roles, element) => <ProtectedRoute roles={roles}>{element}</ProtectedRoute>;
 
@@ -29,8 +30,12 @@ export default function App() {
     <Routes>
       {/* --- ROUTES PUBLIQUES --- */}
       <Route path="/connexion" element={<Login />} />
-      <Route path="/creer-espace" element={<CreerEspace />} /> {/* <-- NOUVELLE ROUTE */}
-      
+      <Route path="/login" element={<Login />} /> {/* Ajouté pour OAuth */}
+      <Route path="/creer-espace" element={<CreerEspace />} />
+      <Route path="/decouvrir" element={<Decouvrir />} /> 
+
+
+
       {/* --- ROUTES PROTÉGÉES (Layout) --- */}
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route path="/" element={<Accueil />} />
@@ -43,6 +48,7 @@ export default function App() {
         <Route path="/inscriptions" element={page(["administrateur"], <Inscriptions />)} />
         <Route path="/formateurs" element={page(["administrateur"], <Formateurs />)} />
         <Route path="/mon-abonnement" element={page(["administrateur"], <MonAbonnement />)} />
+        
         {/* Formateur */}
         <Route path="/contenu" element={page(["formateur"], <Contenu />)} />
         <Route path="/contenu/:id" element={page(["formateur"], <Module />)} />

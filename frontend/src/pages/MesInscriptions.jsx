@@ -44,8 +44,7 @@ export default function MesInscriptions() {
   async function annuler(i) {
     const ok = await confirmer({
       titre: "Annuler cette inscription ?",
-      message:
-        i.statut_inscription === "en_attente"
+      message: i.statut_inscription === "en_attente"
           ? `Votre demande pour « ${i.formation} » sera retirée.`
           : `Vous perdrez l'accès au contenu de « ${i.formation} ».`,
       danger: true,
@@ -62,100 +61,80 @@ export default function MesInscriptions() {
   }
 
   return (
-    <>
-      <h1 style={{ marginBottom: 20 }}>Mes inscriptions</h1>
-
-      <div className="page-split">
-        {/* COLONNE GAUCHE : actions */}
-        <div className="colonne gauche">
-          <h2>Actions</h2>
-          <p style={{ fontSize: 13, color: "#6b6485", marginBottom: 14 }}>
-            Consultez le catalogue pour demander une nouvelle inscription.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate("/catalogue")}
-            style={{ width: "100%" }}
-          >
-            Voir le catalogue
-          </button>
-        </div>
-
-        {/* COLONNE DROITE : filtres en haut + liste */}
-        <div className="colonne droite">
-          <div className="filtres-haut">
-            <button type="button" onClick={() => setFiltre("toutes")} className={filtre === "toutes" ? "actif" : ""}>
-              Toutes ({liste.length})
-            </button>
-            <button type="button" onClick={() => setFiltre("en_attente")} className={filtre === "en_attente" ? "actif" : ""}>
-              En attente ({compte("en_attente")})
-            </button>
-            <button type="button" onClick={() => setFiltre("validee")} className={filtre === "validee" ? "actif" : ""}>
-              Validées ({compte("validee")})
-            </button>
-            <button type="button" onClick={() => setFiltre("refusee")} className={filtre === "refusee" ? "actif" : ""}>
-              Refusées ({compte("refusee")})
-            </button>
-            <button type="button" onClick={() => setFiltre("annulee")} className={filtre === "annulee" ? "actif" : ""}>
-              Annulées ({compte("annulee")})
-            </button>
-            <input
-              type="search"
-              placeholder="Rechercher par formation…"
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-            />
-          </div>
-
-          <h2>Liste de mes inscriptions ({listeFiltree.length})</h2>
-
-          {chargement ? (
-            <Loading texte="Chargement…" />
-          ) : listeFiltree.length === 0 ? (
-            <p style={{ textAlign: "center", padding: 20, color: "#6b6485" }}>
-              Aucune inscription ne correspond à ce filtre.
-            </p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Formation</th>
-                  <th>Session</th>
-                  <th>Demandée le</th>
-                  <th>Statut</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {listeFiltree.map((i) => (
-                  <tr key={i.id_inscription}>
-                    <td>{i.formation}</td>
-                    <td>Début : {i.date_debut}</td>
-                    <td>{i.date_inscription}</td>
-                    <td>
-                      <span className={`etiquette ${i.statut_inscription}`}>
-                        {i.statut_inscription.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="actions-btns">
-                        {(i.statut_inscription === "en_attente" || i.statut_inscription === "validee") && (
-                          <button type="button" onClick={() => annuler(i)}>Annuler</button>
-                        )}
-                        {i.statut_inscription === "validee" && (
-                          <button type="button" onClick={() => navigate("/mes-formations")}>
-                            Voir la formation
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+    <div className="container-fluid py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <h1 className="h3 fw-bold mb-0">Mes inscriptions</h1>
+        <button className="btn btn-primary" onClick={() => navigate("/catalogue")}>
+          <i className="bi bi-search me-2"></i> Parcourir le catalogue
+        </button>
       </div>
-    </>
+
+      <div className="filtres-haut mb-4">
+        <button type="button" onClick={() => setFiltre("toutes")} className={filtre === "toutes" ? "actif" : ""}>Toutes ({liste.length})</button>
+        <button type="button" onClick={() => setFiltre("en_attente")} className={filtre === "en_attente" ? "actif" : ""}>En attente ({compte("en_attente")})</button>
+        <button type="button" onClick={() => setFiltre("validee")} className={filtre === "validee" ? "actif" : ""}>Validées ({compte("validee")})</button>
+        <button type="button" onClick={() => setFiltre("refusee")} className={filtre === "refusee" ? "actif" : ""}>Refusées ({compte("refusee")})</button>
+        <button type="button" onClick={() => setFiltre("annulee")} className={filtre === "annulee" ? "actif" : ""}>Annulées ({compte("annulee")})</button>
+        <input type="search" placeholder="Rechercher par formation..." value={recherche} onChange={(e) => setRecherche(e.target.value)} />
+      </div>
+
+      {chargement ? (
+        <Loading texte="Chargement…" />
+      ) : (
+        <div className="card border-0 shadow-sm">
+          <div className="card-body p-0">
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Formation</th>
+                    <th>Début de session</th>
+                    <th>Date de demande</th>
+                    <th>Statut</th>
+                    <th className="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {listeFiltree.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="text-center py-5 text-muted">
+                        Aucune inscription trouvée.
+                      </td>
+                    </tr>
+                  ) : (
+                    listeFiltree.map((i) => (
+                      <tr key={i.id_inscription}>
+                        <td className="fw-bold text-dark">{i.formation}</td>
+                        <td>{new Date(i.date_debut).toLocaleDateString('fr-FR')}</td>
+                        <td>{new Date(i.date_inscription).toLocaleDateString('fr-FR')}</td>
+                        <td>
+                          <span className={`etiquette ${i.statut_inscription}`}>
+                            {i.statut_inscription.replace("_", " ")}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="d-flex gap-2 justify-content-end">
+                            {i.statut_inscription === "validee" && (
+                              <button type="button" className="btn-ghost" onClick={() => navigate("/mes-formations")}>
+                                <i className="bi bi-play-circle me-1"></i> Accéder
+                              </button>
+                            )}
+                            {(i.statut_inscription === "en_attente" || i.statut_inscription === "validee") && (
+                              <button type="button" className="btn-ghost-danger" onClick={() => annuler(i)}>
+                                <i className="bi bi-x-circle me-1"></i> Annuler
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

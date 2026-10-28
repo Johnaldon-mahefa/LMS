@@ -29,6 +29,9 @@ export default function Utilisateurs() {
   const [recherche, setRecherche] = useState("");
   const [modif, setModif] = useState(null);
   const [mdp, setMdp] = useState(null);
+  
+  // Nouvel état pour afficher/masquer la modale de création
+  const [afficherForm, setAfficherForm] = useState(false);
 
   const charger = () => {
     const debut = Date.now();
@@ -78,11 +81,13 @@ export default function Utilisateurs() {
       roles: f.roles.includes(role) ? f.roles.filter((r) => r !== role) : [...f.roles, role],
     }));
   }
+
   async function creer(e) {
     e.preventDefault();
     try {
       await api("/utilisateurs", { method: "POST", body: form });
       setForm(VIDE);
+      setAfficherForm(false); // Ferme la modale en cas de succès
       toast.ok("Compte créé.");
       charger();
     } catch (err) { toast.erreur(err.message); }
@@ -99,6 +104,7 @@ export default function Utilisateurs() {
     try { await api(`/utilisateurs/${u.id_utilisateur}/desactiver`, { method: "PATCH" }); toast.ok("Compte désactivé."); charger(); }
     catch (err) { toast.erreur(err.message); }
   }
+
   async function reactiver(u) {
     try { await api(`/utilisateurs/${u.id_utilisateur}/reactiver`, { method: "PATCH" }); toast.ok("Compte réactivé."); charger(); }
     catch (err) { toast.erreur(err.message); }
@@ -107,12 +113,14 @@ export default function Utilisateurs() {
   function ouvrirModif(u) {
     setModif({ id: u.id_utilisateur, nom: u.nom, prenom: u.prenom, roles: [...u.roles] });
   }
+
   function basculerRoleModif(role) {
     setModif((m) => ({
       ...m,
       roles: m.roles.includes(role) ? m.roles.filter((r) => r !== role) : [...m.roles, role],
     }));
   }
+
   async function enregistrerModif(e) {
     e.preventDefault();
     try {
@@ -129,6 +137,7 @@ export default function Utilisateurs() {
   function ouvrirMdp(u) {
     setMdp({ id: u.id_utilisateur, prenom: u.prenom, nom: u.nom, motDePasse: "" });
   }
+
   async function enregistrerMdp(e) {
     e.preventDefault();
     try {
@@ -142,85 +151,149 @@ export default function Utilisateurs() {
   }
 
   return (
-    <>
-      <h1 style={{ marginBottom: 20 }}>Gérer les utilisateurs</h1>
-
-      <div className="page-split">
-        <div className="colonne gauche">
-          <h2>Nouveau compte</h2>
-          <form onSubmit={creer} className="grille">
-            <label>Nom<input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} required /></label>
-            <label>Prénom<input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} required /></label>
-            <label>Identifiant<input value={form.identifiant} onChange={(e) => setForm({ ...form, identifiant: e.target.value })} required /></label>
-            <label>Mot de passe initial<input type="password" value={form.motDePasse} onChange={(e) => setForm({ ...form, motDePasse: e.target.value })} required /></label>
-            <fieldset><legend>Rôles</legend>
-              {ROLES.map((r) => (
-                <label key={r}><input type="checkbox" checked={form.roles.includes(r)} onChange={() => basculerRole(r)} /> {r}</label>
-              ))}
-            </fieldset>
-            <button type="submit">Créer le compte</button>
-          </form>
-        </div>
-
-        <div className="colonne droite">
-          <div className="filtres-haut">
-            <button type="button" onClick={() => setFiltre("tous")} className={filtre === "tous" ? "actif" : ""}>Tous ({liste.length})</button>
-            <button type="button" onClick={() => setFiltre("actif")} className={filtre === "actif" ? "actif" : ""}>Actifs ({compte("actif")})</button>
-            <button type="button" onClick={() => setFiltre("desactive")} className={filtre === "desactive" ? "actif" : ""}>Désactivés ({compte("desactive")})</button>
-            <input type="search" placeholder="Rechercher…" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
-            <h2 style={{ margin: 0, border: 0, padding: 0 }}>Liste des utilisateurs ({listeFiltree.length})</h2>
-            <div className="actions" style={{ margin: 0 }}>
-              <button type="button" onClick={exporterEnCSV} title="Télécharger en CSV"><i className="bi bi-file-earmark-spreadsheet me-1"></i> CSV</button>
-              <button type="button" onClick={exporterEnPDF} title="Télécharger en PDF"><i className="bi bi-file-earmark-pdf me-1"></i> PDF</button>
-            </div>
-          </div>
-
-          {chargement ? (
-            <Loading texte="Chargement des utilisateurs…" />
-          ) : (
-            <table>
-              <thead>
-                <tr><th>Nom</th><th>Identifiant</th><th>Rôles</th><th>Statut</th><th>Actions</th></tr>
-              </thead>
-              <tbody>
-                {listeFiltree.length === 0 && (
-                  <tr><td colSpan="5" style={{ textAlign: "center", padding: 20, color: "#6b6485" }}>Aucun utilisateur trouvé.</td></tr>
-                )}
-                {listeFiltree.map((u) => (
-                  <tr key={u.id_utilisateur}>
-                    <td>{u.prenom} {u.nom}</td>
-                    <td>{u.identifiant}</td>
-                    <td>{u.roles.join(", ")}</td>
-                    <td><span className={`etiquette ${u.statut_compte}`}>{u.statut_compte === "desactive" ? "désactivé" : u.statut_compte}</span></td>
-                    <td>
-                      <div className="d-flex gap-2 justify-content-end">
-                        <button type="button" className="btn btn-sm btn-primary" onClick={() => ouvrirModif(u)} title="Modifier cet utilisateur">
-                          <i className="bi bi-pencil me-1"></i> Modifier
-                        </button>
-                        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => ouvrirMdp(u)} title="Réinitialiser le mot de passe">
-                          <i className="bi bi-key me-1"></i> Mot de passe
-                        </button>
-                        {u.id_utilisateur !== moi.id && (
-                          u.statut_compte === "actif"
-                            ? <button type="button" className="btn btn-sm btn-danger" onClick={() => desactiver(u)} title="Désactiver le compte">
-                                <i className="bi bi-person-x me-1"></i> Désactiver
-                              </button>
-                            : <button type="button" className="btn btn-sm btn-success" onClick={() => reactiver(u)} title="Réactiver le compte">
-                                <i className="bi bi-person-check me-1"></i> Réactiver
-                              </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+    <div className="container-fluid py-4">
+      
+      {/* EN-TÊTE (Titre + Boutons d'action) */}
+      <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <h1 className="h3 fw-bold mb-0">Gérer les utilisateurs</h1>
+        <div className="d-flex gap-2">
+          <button type="button" className="btn-ghost" onClick={exporterEnCSV} title="Télécharger en CSV">
+            <i className="bi bi-file-earmark-spreadsheet me-1"></i> CSV
+          </button>
+          <button type="button" className="btn-ghost" onClick={exporterEnPDF} title="Télécharger en PDF">
+            <i className="bi bi-file-earmark-pdf me-1"></i> PDF
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => setAfficherForm(true)}>
+            <i className="bi bi-person-plus me-2"></i> Nouveau compte
+          </button>
         </div>
       </div>
+
+      {/* FILTRES */}
+      <div className="filtres-haut mb-4">
+        <button type="button" onClick={() => setFiltre("tous")} className={filtre === "tous" ? "actif" : ""}>Tous ({liste.length})</button>
+        <button type="button" onClick={() => setFiltre("actif")} className={filtre === "actif" ? "actif" : ""}>Actifs ({compte("actif")})</button>
+        <button type="button" onClick={() => setFiltre("desactive")} className={filtre === "desactive" ? "actif" : ""}>Désactivés ({compte("desactive")})</button>
+        <input type="search" placeholder="Rechercher un utilisateur..." value={recherche} onChange={(e) => setRecherche(e.target.value)} />
+      </div>
+
+      {/* TABLEAU */}
+      {chargement ? (
+        <Loading texte="Chargement des utilisateurs…" />
+      ) : (
+        <div className="card border-0 shadow-sm">
+          <div className="card-body p-0">
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Nom complet</th>
+                    <th>Identifiant</th>
+                    <th>Rôles</th>
+                    <th>Statut</th>
+                    <th className="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {listeFiltree.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="text-center py-5 text-muted">
+                        Aucun utilisateur trouvé.
+                      </td>
+                    </tr>
+                  ) : (
+                    listeFiltree.map((u) => (
+                      <tr key={u.id_utilisateur}>
+                        <td>
+                          <div className="fw-bold text-dark">{u.prenom} {u.nom}</div>
+                        </td>
+                        <td className="text-muted">{u.identifiant}</td>
+                        <td className="text-capitalize">{u.roles.join(", ")}</td>
+                        <td>
+                          <span className={`etiquette ${u.statut_compte}`}>
+                            {u.statut_compte === "desactive" ? "désactivé" : u.statut_compte}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="d-flex gap-2 justify-content-end">
+                            <button type="button" className="btn-ghost" onClick={() => ouvrirModif(u)} title="Modifier">
+                              <i className="bi bi-pencil me-1"></i> Modifier
+                            </button>
+                            <button type="button" className="btn-ghost" onClick={() => ouvrirMdp(u)} title="Mot de passe">
+                              <i className="bi bi-key me-1"></i> Mot de passe
+                            </button>
+                            {u.id_utilisateur !== moi.id && (
+                              u.statut_compte === "actif" ? (
+                                <button type="button" className="btn-ghost-danger" onClick={() => desactiver(u)} title="Désactiver">
+                                  <i className="bi bi-person-x me-1"></i> Désactiver
+                                </button>
+                              ) : (
+                                <button type="button" className="btn-ghost" style={{ color: '#10b981', borderColor: '#a7f3d0' }} onClick={() => reactiver(u)} title="Réactiver">
+                                  <i className="bi bi-person-check me-1"></i> Réactiver
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALE DE CRÉATION */}
+      {afficherForm && (
+        <div className="lms-modal-overlay" onClick={(e) => e.target === e.currentTarget && setAfficherForm(false)}>
+          <div className="lms-modal-box">
+            <div className="lms-modal-header">
+              <h2>Créer un nouvel utilisateur</h2>
+              <button type="button" onClick={() => setAfficherForm(false)}>✕</button>
+            </div>
+            <form onSubmit={creer}>
+              <div className="lms-modal-body">
+                <div className="row">
+                  <div className="col-md-6">
+                    <label>Prénom</label>
+                    <input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} required />
+                  </div>
+                  <div className="col-md-6">
+                    <label>Nom</label>
+                    <input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} required />
+                  </div>
+                </div>
+                <label>Identifiant (Email)</label>
+                <input type="email" value={form.identifiant} onChange={(e) => setForm({ ...form, identifiant: e.target.value })} required />
+                
+                <label>Mot de passe initial</label>
+                <input type="password" value={form.motDePasse} onChange={(e) => setForm({ ...form, motDePasse: e.target.value })} minLength={8} required />
+
+                <fieldset className="mt-3">
+                  <legend>Rôles</legend>
+                  {ROLES.map((r) => (
+                    <label key={r} className="d-flex align-items-center gap-2 mb-2">
+                      <input 
+                        type="checkbox" 
+                        checked={form.roles.includes(r)} 
+                        onChange={() => basculerRole(r)} 
+                        style={{ width: 'auto', margin: 0 }}
+                      /> 
+                      <span className="text-capitalize">{r}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              </div>
+              <div className="lms-modal-footer">
+                <button type="button" className="btn-ghost" onClick={() => setAfficherForm(false)}>Annuler</button>
+                <button type="submit" className="btn btn-primary">Créer le compte</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODALE MODIFIER */}
       {modif && (
@@ -232,17 +305,34 @@ export default function Utilisateurs() {
             </div>
             <form onSubmit={enregistrerModif}>
               <div className="lms-modal-body">
-                <label>Nom<input value={modif.nom} onChange={(e) => setModif({ ...modif, nom: e.target.value })} required /></label>
-                <label>Prénom<input value={modif.prenom} onChange={(e) => setModif({ ...modif, prenom: e.target.value })} required /></label>
-                <fieldset><legend>Rôles</legend>
+                <div className="row">
+                  <div className="col-md-6">
+                    <label>Prénom</label>
+                    <input value={modif.prenom} onChange={(e) => setModif({ ...modif, prenom: e.target.value })} required />
+                  </div>
+                  <div className="col-md-6">
+                    <label>Nom</label>
+                    <input value={modif.nom} onChange={(e) => setModif({ ...modif, nom: e.target.value })} required />
+                  </div>
+                </div>
+                <fieldset className="mt-3">
+                  <legend>Rôles</legend>
                   {ROLES.map((r) => (
-                    <label key={r}><input type="checkbox" checked={modif.roles.includes(r)} onChange={() => basculerRoleModif(r)} /> {r}</label>
+                    <label key={r} className="d-flex align-items-center gap-2 mb-2">
+                      <input 
+                        type="checkbox" 
+                        checked={modif.roles.includes(r)} 
+                        onChange={() => basculerRoleModif(r)} 
+                        style={{ width: 'auto', margin: 0 }}
+                      /> 
+                      <span className="text-capitalize">{r}</span>
+                    </label>
                   ))}
                 </fieldset>
               </div>
               <div className="lms-modal-footer">
-                <button type="button" className="secondaire" onClick={() => setModif(null)}>Annuler</button>
-                <button type="submit">Enregistrer</button>
+                <button type="button" className="btn-ghost" onClick={() => setModif(null)}>Annuler</button>
+                <button type="submit" className="btn btn-primary">Enregistrer</button>
               </div>
             </form>
           </div>
@@ -259,19 +349,25 @@ export default function Utilisateurs() {
             </div>
             <form onSubmit={enregistrerMdp}>
               <div className="lms-modal-body">
-                <p style={{ marginBottom: 12, color: "#6b6485" }}>Nouveau mot de passe pour <strong>{mdp.prenom} {mdp.nom}</strong>.</p>
-                <label>Nouveau mot de passe
-                  <input type="text" value={mdp.motDePasse} onChange={(e) => setMdp({ ...mdp, motDePasse: e.target.value })} minLength={8} required autoFocus />
-                </label>
+                <p className="text-muted mb-3">Nouveau mot de passe pour <strong>{mdp.prenom} {mdp.nom}</strong>.</p>
+                <label>Nouveau mot de passe</label>
+                <input 
+                  type="text" 
+                  value={mdp.motDePasse} 
+                  onChange={(e) => setMdp({ ...mdp, motDePasse: e.target.value })} 
+                  minLength={8} 
+                  required 
+                  autoFocus 
+                />
               </div>
               <div className="lms-modal-footer">
-                <button type="button" className="secondaire" onClick={() => setMdp(null)}>Annuler</button>
-                <button type="submit">Réinitialiser</button>
+                <button type="button" className="btn-ghost" onClick={() => setMdp(null)}>Annuler</button>
+                <button type="submit" className="btn btn-primary">Réinitialiser</button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

@@ -10,7 +10,6 @@ import "bootstrap-icons/font/bootstrap-icons.css";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
     <BrowserRouter>
       <ToastProvider>
         <ConfirmProvider>
@@ -20,5 +19,4 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         </ConfirmProvider>
       </ToastProvider>
     </BrowserRouter>
-  </React.StrictMode>
 );

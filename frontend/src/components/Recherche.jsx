@@ -47,15 +47,15 @@ export default function Recherche() {
     : 0;
 
   return (
-    <div className="position-relative flex-grow-1" style={{ maxWidth: '400px' }} ref={boite}>
-      <div className="input-group">
-        <span className="input-group-text bg-white border-end-0">
-          <i className="bi bi-search text-muted"></i>
-        </span>
+    <div className="position-relative w-100" style={{ maxWidth: '500px' }} ref={boite}>
+      
+      {/* BARRE DE RECHERCHE */}
+      <div className="topbar-search-container">
+        <i className="bi bi-search text-muted me-2"></i>
         <input
           type="text"
-          className="form-control border-start-0 ps-0"
-          placeholder="Rechercher formations, modules…"
+          className="topbar-search-input"
+          placeholder="Rechercher une formation, un module..."
           value={terme}
           onChange={(e) => setTerme(e.target.value)}
           onFocus={() => resultats && setOuvert(true)}
@@ -64,67 +64,65 @@ export default function Recherche() {
         />
       </div>
 
+      {/* RÉSULTATS DE RECHERCHE */}
       {ouvert && resultats && (
-        <div 
-          className="position-absolute w-100 bg-white border rounded shadow-sm mt-1" 
-          style={{ zIndex: 1050, maxHeight: '400px', overflowY: 'auto' }}
-        >
+        <div className="search-results-dropdown">
           {total === 0 ? (
             <p className="text-muted text-center p-3 mb-0">Aucun résultat pour « {terme} ».</p>
           ) : (
             <>
               {resultats.formations.length > 0 && (
-                <div className="border-bottom pb-2">
-                  <div className="px-3 pt-2 pb-1 text-uppercase text-muted fw-bold" style={{ fontSize: '11px' }}>
+                <div className="search-group">
+                  <div className="search-category-title">
                     <i className="bi bi-journal-text me-1"></i> Formations
                   </div>
                   {resultats.formations.map((f) => (
-                    <button key={f.id_formation} onClick={() => aller(routeFormation)} className="btn btn-link text-decoration-none text-start w-100 px-3 py-2 text-dark hover-bg-light">
-                      <div className="fw-bold">{f.intitule}</div>
-                      <div className="small text-muted">{f.statut_formation}</div>
-                    </button>
+                    <div key={f.id_formation} onClick={() => aller(routeFormation)} className="search-result-row" role="button">
+                      <div className="search-result-title">{f.intitule}</div>
+                      <div className="search-result-subtitle text-capitalize">{f.statut_formation}</div>
+                    </div>
                   ))}
                 </div>
               )}
 
               {resultats.modules.length > 0 && (
-                <div className="border-bottom pb-2">
-                  <div className="px-3 pt-2 pb-1 text-uppercase text-muted fw-bold" style={{ fontSize: '11px' }}>
+                <div className="search-group">
+                  <div className="search-category-title">
                     <i className="bi bi-box me-1"></i> Modules
                   </div>
                   {resultats.modules.map((m) => (
-                    <button key={m.id_module} onClick={() => aller(`/contenu/${m.id_module}`)} className="btn btn-link text-decoration-none text-start w-100 px-3 py-2 text-dark hover-bg-light">
-                      <div className="fw-bold">{m.titre}</div>
-                      <div className="small text-muted">{m.formation}</div>
-                    </button>
+                    <div key={m.id_module} onClick={() => aller(`/contenu/${m.id_module}`)} className="search-result-row" role="button">
+                      <div className="search-result-title">{m.titre}</div>
+                      <div className="search-result-subtitle">{m.formation}</div>
+                    </div>
                   ))}
                 </div>
               )}
 
               {resultats.evaluations.length > 0 && (
-                <div className="border-bottom pb-2">
-                  <div className="px-3 pt-2 pb-1 text-uppercase text-muted fw-bold" style={{ fontSize: '11px' }}>
+                <div className="search-group">
+                  <div className="search-category-title">
                     <i className="bi bi-pencil-square me-1"></i> Évaluations
                   </div>
                   {resultats.evaluations.map((e) => (
-                    <button key={e.id_evaluation} onClick={() => aller(`/contenu/${e.id_module}`)} className="btn btn-link text-decoration-none text-start w-100 px-3 py-2 text-dark hover-bg-light">
-                      <div className="fw-bold">{e.intitule}</div>
-                      <div className="small text-muted">{e.module}</div>
-                    </button>
+                    <div key={e.id_evaluation} onClick={() => aller(`/contenu/${e.id_module}`)} className="search-result-row" role="button">
+                      <div className="search-result-title">{e.intitule}</div>
+                      <div className="search-result-subtitle">{e.module}</div>
+                    </div>
                   ))}
                 </div>
               )}
 
               {resultats.utilisateurs.length > 0 && (
-                <div className="pb-2">
-                  <div className="px-3 pt-2 pb-1 text-uppercase text-muted fw-bold" style={{ fontSize: '11px' }}>
+                <div className="search-group">
+                  <div className="search-category-title">
                     <i className="bi bi-people me-1"></i> Utilisateurs
                   </div>
                   {resultats.utilisateurs.map((u) => (
-                    <button key={u.id_utilisateur} onClick={() => aller("/utilisateurs")} className="btn btn-link text-decoration-none text-start w-100 px-3 py-2 text-dark hover-bg-light">
-                      <div className="fw-bold">{u.prenom} {u.nom}</div>
-                      <div className="small text-muted">{u.identifiant}</div>
-                    </button>
+                    <div key={u.id_utilisateur} onClick={() => aller("/utilisateurs")} className="search-result-row" role="button">
+                      <div className="search-result-title">{u.prenom} {u.nom}</div>
+                      <div className="search-result-subtitle">{u.identifiant}</div>
+                    </div>
                   ))}
                 </div>
               )}
