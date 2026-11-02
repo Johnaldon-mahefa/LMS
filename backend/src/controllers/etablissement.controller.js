@@ -4,5 +4,7 @@ import { verifierStatutPaiementMvola } from "../services/paiement.service.js";
 
 export const getMonAbonnement = ok((req) => Service.getMonAbonnement(req.user.id_etablissement));
 export const getPlans = ok(() => Service.getPlansDisponibles());
+export const getFonctionnalites = ok(() => Service.getToutesLesFonctionnalites());
 export const payer = ok((req) => Service.payerAbonnement(req.user.id_etablissement, req.body.id_plan));
+export const payerSurMesure = ok((req) => Service.payerFonctionnalitesSurMesure(req.user.id_etablissement, req.body.fonctionnalites, req.body.max_utilisateurs));
 export const verifierStatut = ok((req) => verifierStatutPaiementMvola(req.params.serverCorrelationId));

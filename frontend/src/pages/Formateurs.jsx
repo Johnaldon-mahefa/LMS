@@ -20,14 +20,12 @@ export default function Formateurs() {
       });
   }, []);
 
-  // Fonction pour générer les initiales du formateur
   const getInitiales = (prenom, nom) => {
     return `${prenom?.[0] || ""}${nom?.[0] || ""}`.toUpperCase();
   };
 
   return (
     <div className="container-fluid py-4">
-      {/* En-tête de la page */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h1 className="h3 fw-bold mb-1">Affectations des formateurs</h1>
@@ -63,7 +61,6 @@ export default function Formateurs() {
                 <tbody>
                   {formateurs.map((f) => (
                     <tr key={f.id_utilisateur}>
-                      {/* Colonne Formateur avec Avatar */}
                       <td className="ps-4">
                         <div className="d-flex align-items-center gap-3">
                           <div 
@@ -79,20 +76,19 @@ export default function Formateurs() {
                         </div>
                       </td>
                       
-                      {/* Colonne Identifiant */}
                       <td className="text-muted">
                         <i className="bi bi-envelope me-1"></i> {f.identifiant}
                       </td>
                       
-                      {/* Colonne Sessions */}
                       <td className="pe-4 py-3">
-                        {f.sessions.length === 0 ? (
+                        {/* SÉCURITÉ ICI : f.sessions || [] */}
+                        {(f.sessions || []).length === 0 ? (
                           <span className="badge bg-warning bg-opacity-10 text-warning border border-warning px-3 py-2 rounded-pill">
                             <i className="bi bi-exclamation-circle me-1"></i> Aucune session affectée
                           </span>
                         ) : (
                           <div className="d-flex flex-wrap gap-2">
-                            {f.sessions.map((s, index) => (
+                            {(f.sessions || []).map((s, index) => (
                               <div 
                                 key={index} 
                                 className="card border-0 bg-light"

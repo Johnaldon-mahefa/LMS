@@ -9,6 +9,7 @@ import * as Evaluation from "../models/evaluation.model.js";
 import * as Soumission from "../models/soumission.model.js";
 import * as Formation from "../models/formation.model.js";
 import { calculer } from "./resultats.service.js";
+import { query } from "../config/db.js"; // <-- Ajout pour la requête session
 
 export async function mesFormations(idApprenant, idEtablissement) {
   const inscriptions = await Inscription.findValideesByApprenant(idApprenant, idEtablissement);
@@ -20,6 +21,11 @@ export async function contenuInscription(idInscription, idApprenant) {
   const inscription = await Inscription.findById(idInscription);
   if (!inscription || inscription.id_apprenant !== idApprenant || inscription.statut_inscription !== "validee")
     throw new AppError(403, "Accès refusé : inscription non validée.");
+    
+  // RÉCUPÉRATION DU STATUT DE LA SESSION
+  const sessionRes = await query("SELECT statut_session FROM session WHERE id_session = $1", [inscription.id_session]);
+  inscription.statut_session = sessionRes.rows[0]?.statut_session || "ouverte";
+
   const modules = await Module.findByFormation(inscription.id_formation, { seulementPublies: true });
   for (const m of modules) {
     m.lecons = await Lecon.findByModule(m.id_module);
@@ -33,7 +39,6 @@ export async function contenuInscription(idInscription, idApprenant) {
   return { inscription, modules };
 }
 
-// CORRECTION : Vérification Multi-Tenant pour les fichiers
 export async function ressourceAutorisee(idRessource, utilisateur, idEtablissement) {
   const ressource = await Ressource.findById(idRessource);
   if (!ressource) throw new AppError(404, "Fichier introuvable.");
@@ -41,7 +46,6 @@ export async function ressourceAutorisee(idRessource, utilisateur, idEtablisseme
   const module = await Module.findById(ressource.id_module);
   const formation = await Formation.findById(module.id_formation);
   
-  // On vérifie que la ressource appartient bien à l'école active
   if (formation.id_etablissement !== idEtablissement) {
     throw new AppError(403, "Cette ressource n'appartient pas à votre établissement actuel.");
   }

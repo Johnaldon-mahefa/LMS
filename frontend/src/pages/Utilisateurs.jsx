@@ -30,7 +30,9 @@ export default function Utilisateurs() {
   const [modif, setModif] = useState(null);
   const [mdp, setMdp] = useState(null);
   
-  // Nouvel état pour afficher/masquer la modale de création
+  // NOUVEAU : État pour la limite d'utilisateurs
+  const [limiteInfo, setLimiteInfo] = useState({ max: null, actuels: 0 });
+  
   const [afficherForm, setAfficherForm] = useState(false);
 
   const charger = () => {
@@ -46,7 +48,15 @@ export default function Utilisateurs() {
       });
   };
 
-  useEffect(() => { charger(); }, []);
+  // MODIFIÉ : On récupère aussi la limite d'utilisateurs
+  useEffect(() => {
+    charger();
+    api("/etablissement/mon-abonnement")
+      .then((res) => {
+        setLimiteInfo({ max: res.max_utilisateurs, actuels: Number(res.nb_utilisateurs_actuels) });
+      })
+      .catch((e) => console.error("Erreur récupération abonnement:", e));
+  }, []);
 
   const listeFiltree = useMemo(() => {
     const q = recherche.trim().toLowerCase();
@@ -87,10 +97,16 @@ export default function Utilisateurs() {
     try {
       await api("/utilisateurs", { method: "POST", body: form });
       setForm(VIDE);
-      setAfficherForm(false); // Ferme la modale en cas de succès
+      setAfficherForm(false);
       toast.ok("Compte créé.");
       charger();
-    } catch (err) { toast.erreur(err.message); }
+      // On rafraichit aussi la limite pour mettre à jour le compteur
+      api("/etablissement/mon-abonnement").then((res) => {
+        setLimiteInfo({ max: res.max_utilisateurs, actuels: Number(res.nb_utilisateurs_actuels) });
+      });
+    } catch (err) { 
+      toast.erreur(err.message); 
+    }
   }
 
   async function desactiver(u) {
@@ -150,21 +166,38 @@ export default function Utilisateurs() {
     } catch (err) { toast.erreur(err.message); }
   }
 
+  // Vérifie si la limite est atteinte
+  const limiteAtteinte = limiteInfo.max !== null && limiteInfo.actuels >= limiteInfo.max;
+
   return (
     <div className="container-fluid py-4">
       
-      {/* EN-TÊTE (Titre + Boutons d'action) */}
+      {/* EN-TÊTE */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <h1 className="h3 fw-bold mb-0">Gérer les utilisateurs</h1>
-        <div className="d-flex gap-2">
+        
+        <div className="d-flex gap-2 align-items-center flex-wrap">
+          {/* NOUVEAU : Compteur et bouton avec disabled */}
+          <div className="d-flex align-items-center gap-3 me-3 bg-light px-3 py-2 rounded-3 border">
+            <div className="text-muted small fw-semibold">
+              <i className="bi bi-people me-1"></i>
+              {limiteInfo.actuels} / {limiteInfo.max === null ? "∞" : limiteInfo.max} utilisateurs
+            </div>
+            <button 
+              className="btn btn-primary" 
+              onClick={() => setAfficherForm(true)}
+              disabled={limiteAtteinte}
+              title={limiteAtteinte ? "Limite atteinte, passez à un plan supérieur" : ""}
+            >
+              <i className="bi bi-person-plus me-2"></i> Nouveau compte
+            </button>
+          </div>
+
           <button type="button" className="btn-ghost" onClick={exporterEnCSV} title="Télécharger en CSV">
             <i className="bi bi-file-earmark-spreadsheet me-1"></i> CSV
           </button>
           <button type="button" className="btn-ghost" onClick={exporterEnPDF} title="Télécharger en PDF">
             <i className="bi bi-file-earmark-pdf me-1"></i> PDF
-          </button>
-          <button type="button" className="btn btn-primary" onClick={() => setAfficherForm(true)}>
-            <i className="bi bi-person-plus me-2"></i> Nouveau compte
           </button>
         </div>
       </div>
@@ -256,31 +289,28 @@ export default function Utilisateurs() {
             <form onSubmit={creer}>
               <div className="lms-modal-body">
                 <div className="row">
-                  <div className="col-md-6">
+                  <div className="col-md-6 mb-3">
                     <label>Prénom</label>
                     <input value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} required />
                   </div>
-                  <div className="col-md-6">
+                  <div className="col-md-6 mb-3">
                     <label>Nom</label>
                     <input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} required />
                   </div>
                 </div>
-                <label>Identifiant (Email)</label>
-                <input type="email" value={form.identifiant} onChange={(e) => setForm({ ...form, identifiant: e.target.value })} required />
-                
-                <label>Mot de passe initial</label>
-                <input type="password" value={form.motDePasse} onChange={(e) => setForm({ ...form, motDePasse: e.target.value })} minLength={8} required />
-
+                <div className="mb-3">
+                  <label>Identifiant (Email)</label>
+                  <input type="email" value={form.identifiant} onChange={(e) => setForm({ ...form, identifiant: e.target.value })} required />
+                </div>
+                <div className="mb-3">
+                  <label>Mot de passe initial</label>
+                  <input type="password" value={form.motDePasse} onChange={(e) => setForm({ ...form, motDePasse: e.target.value })} minLength={8} required />
+                </div>
                 <fieldset className="mt-3">
                   <legend>Rôles</legend>
                   {ROLES.map((r) => (
                     <label key={r} className="d-flex align-items-center gap-2 mb-2">
-                      <input 
-                        type="checkbox" 
-                        checked={form.roles.includes(r)} 
-                        onChange={() => basculerRole(r)} 
-                        style={{ width: 'auto', margin: 0 }}
-                      /> 
+                      <input type="checkbox" checked={form.roles.includes(r)} onChange={() => basculerRole(r)} style={{ width: 'auto', margin: 0 }} /> 
                       <span className="text-capitalize">{r}</span>
                     </label>
                   ))}
@@ -306,11 +336,11 @@ export default function Utilisateurs() {
             <form onSubmit={enregistrerModif}>
               <div className="lms-modal-body">
                 <div className="row">
-                  <div className="col-md-6">
+                  <div className="col-md-6 mb-3">
                     <label>Prénom</label>
                     <input value={modif.prenom} onChange={(e) => setModif({ ...modif, prenom: e.target.value })} required />
                   </div>
-                  <div className="col-md-6">
+                  <div className="col-md-6 mb-3">
                     <label>Nom</label>
                     <input value={modif.nom} onChange={(e) => setModif({ ...modif, nom: e.target.value })} required />
                   </div>
@@ -319,12 +349,7 @@ export default function Utilisateurs() {
                   <legend>Rôles</legend>
                   {ROLES.map((r) => (
                     <label key={r} className="d-flex align-items-center gap-2 mb-2">
-                      <input 
-                        type="checkbox" 
-                        checked={modif.roles.includes(r)} 
-                        onChange={() => basculerRoleModif(r)} 
-                        style={{ width: 'auto', margin: 0 }}
-                      /> 
+                      <input type="checkbox" checked={modif.roles.includes(r)} onChange={() => basculerRoleModif(r)} style={{ width: 'auto', margin: 0 }} /> 
                       <span className="text-capitalize">{r}</span>
                     </label>
                   ))}
@@ -351,14 +376,7 @@ export default function Utilisateurs() {
               <div className="lms-modal-body">
                 <p className="text-muted mb-3">Nouveau mot de passe pour <strong>{mdp.prenom} {mdp.nom}</strong>.</p>
                 <label>Nouveau mot de passe</label>
-                <input 
-                  type="text" 
-                  value={mdp.motDePasse} 
-                  onChange={(e) => setMdp({ ...mdp, motDePasse: e.target.value })} 
-                  minLength={8} 
-                  required 
-                  autoFocus 
-                />
+                <input type="text" value={mdp.motDePasse} onChange={(e) => setMdp({ ...mdp, motDePasse: e.target.value })} minLength={8} required autoFocus />
               </div>
               <div className="lms-modal-footer">
                 <button type="button" className="btn-ghost" onClick={() => setMdp(null)}>Annuler</button>

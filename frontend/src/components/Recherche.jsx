@@ -47,7 +47,7 @@ export default function Recherche() {
     : 0;
 
   return (
-    <div className="position-relative w-100" style={{ maxWidth: '500px' }} ref={boite}>
+    <div className="position-relative w-100" style={{ maxWidth: '450px' }} ref={boite}>
       
       {/* BARRE DE RECHERCHE */}
       <div className="topbar-search-container">

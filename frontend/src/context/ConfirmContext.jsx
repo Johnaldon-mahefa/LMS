@@ -1,49 +1,53 @@
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { createContext, useContext, useState } from "react";
 
 const ConfirmContext = createContext(null);
 export const useConfirm = () => useContext(ConfirmContext);
 
-// Modale de confirmation : const ok = await confirmer({ titre, message, danger: true })
 export function ConfirmProvider({ children }) {
-  const [demande, setDemande] = useState(null);
-  const resolveur = useRef(null);
+  const [config, setConfig] = useState(null);
 
-  const confirmer = useCallback(
-    (options) => new Promise((resolve) => { resolveur.current = resolve; setDemande(options); }),
-    []
-  );
+  const confirmer = (options) => {
+    return new Promise((resolve) => {
+      setConfig({
+        titre: options.titre || "Confirmation",
+        message: options.message || "Êtes-vous sûr de vouloir continuer ?",
+        confirmer: options.confirmer || "Confirmer",
+        annuler: options.annuler || "Annuler",
+        danger: options.danger || false,
+        resolve,
+      });
+    });
+  };
 
   const fermer = (valeur) => {
-    resolveur.current?.(valeur);
-    setDemande(null);
+    if (config?.resolve) config.resolve(valeur);
+    setConfig(null);
   };
 
   return (
     <ConfirmContext.Provider value={confirmer}>
       {children}
-      {demande && (
-        <div className="fond-modal" onClick={(e) => e.target === e.currentTarget && fermer(false)}>
-          <div className="modal" role="dialog" aria-modal="true">
-            <div className="modal-corps" style={{ textAlign: "center", paddingTop: 30 }}>
-              <div className={`confirm-icone ${demande.danger ? "" : "neutre"}`}>
-                {demande.danger ? "!" : "?"}
-              </div>
-              <h2>{demande.titre || "Confirmer l'action"}</h2>
-              {demande.message && (
-                <p style={{ marginTop: 10, color: "#6b6485", lineHeight: 1.5 }}>{demande.message}</p>
-              )}
+      {config && (
+        <div className="confirm-overlay" onClick={(e) => e.target === e.currentTarget && fermer(false)}>
+          <div className="confirm-box">
+            {/* ICÔNE D'ALERTE */}
+            <div className={`confirm-icon ${config.danger ? "danger" : "info"}`}>
+              <i className={`bi ${config.danger ? "bi-exclamation-triangle" : "bi-question-circle"}`}></i>
             </div>
-            <div className="modal-pied" style={{ justifyContent: "center" }}>
-              <button type="button" className="btn secondaire" onClick={() => fermer(false)}>
-                Annuler
+            
+            <h3 className="confirm-title">{config.titre}</h3>
+            <p className="confirm-message">{config.message}</p>
+            
+            <div className="confirm-actions">
+              <button type="button" className="btn-confirm-cancel" onClick={() => fermer(false)}>
+                {config.annuler}
               </button>
-              <button
-                type="button"
-                className={`btn ${demande.danger ? "danger" : ""}`}
+              <button 
+                type="button" 
+                className={`btn-confirm-ok ${config.danger ? "danger" : ""}`} 
                 onClick={() => fermer(true)}
-                autoFocus
               >
-                {demande.confirmer || "Confirmer"}
+                {config.confirmer}
               </button>
             </div>
           </div>

@@ -3,7 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import Cloche from "./Cloche.jsx";
 import Recherche from "./Recherche.jsx";
-import ChatIA from "./ChatIA.jsx"; // <-- IMPORT DU CHAT
+import ChatIA from "./ChatIA.jsx";
 
 const MENUS = {
   administrateur: [
@@ -30,7 +30,7 @@ const MENUS = {
 export default function Layout() {
   const { utilisateur, deconnecter, aAcces } = useAuth();
   const [menuOuvert, setMenuOuvert] = useState(false);
-  const [chatOuvert, setChatOuvert] = useState(false); // <-- NOUVEL ÉTAT
+  const [chatOuvert, setChatOuvert] = useState(false);
   const lieu = useLocation();
 
   const [isDark, setIsDark] = useState(() => {
@@ -59,7 +59,7 @@ export default function Layout() {
 
   return (
     <div className="layout-sidebar">
-      {/* ================= SIDEBAR ================= */}
+      {/* SIDEBAR */}
       <aside className={`sidebar ${menuOuvert ? "ouverte" : ""}`}>
         <div className="sidebar-marque">
           <Link to="/" className="sidebar-logo" onClick={() => setMenuOuvert(false)}>
@@ -111,34 +111,30 @@ export default function Layout() {
             <i className="bi bi-list"></i>
           </button>
           
-          <div className="flex-grow-1 d-flex align-items-center">
+          {/* CONTENEUR DE LA RECHERCHE */}
+          <div className="d-flex align-items-center flex-grow-1">
             <Recherche />
           </div>
           
-          {/* BOUTONS À DROITE (IA + Mode sombre + Cloche) */}
+          {/* BOUTONS À DROITE */}
           <div className="d-flex align-items-center gap-2">
-            
-            {/* BOUTON IA */}
             <button 
               type="button" 
-              className={`topbar-icon-btn ${chatOuvert ? 'active' : ''}`} 
+              className="topbar-icon-btn" 
               onClick={() => setChatOuvert(!chatOuvert)}
               title="Assistant IA"
             >
               <i className="bi bi-robot"></i>
             </button>
 
-            {/* BOUTON MODE SOMBRE */}
             <button 
               type="button" 
               className="topbar-icon-btn" 
               onClick={() => setIsDark(!isDark)}
-              title={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
             >
               <i className={`bi ${isDark ? 'bi-sun-fill text-warning' : 'bi-moon-fill'}`}></i>
             </button>
             
-            {/* CLOCHE */}
             <Cloche />
           </div>
         </header>
@@ -148,7 +144,6 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* COMPOSANT CHAT IA (Le bouton est dans le topbar, la fenêtre s'affiche par-dessus) */}
       <ChatIA estOuvert={chatOuvert} setEstOuvert={setChatOuvert} />
     </div>
   );

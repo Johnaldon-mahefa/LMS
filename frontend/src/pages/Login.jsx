@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { setToken } from "../api/client.js";
-import { Turnstile } from "@marsidev/react-turnstile"; // <-- IMPORT DU WIDGET
+import { Turnstile } from "@marsidev/react-turnstile";
 
 export default function Login() {
   const [identifiant, setIdentifiant] = useState("");
@@ -10,15 +10,12 @@ export default function Login() {
   const [erreur, setErreur] = useState("");
   const [chargement, setChargement] = useState(false);
   const [choixEcoles, setChoixEcoles] = useState(null);
-  
-  // ÉTAT POUR LE CAPTCHA
   const [captchaToken, setCaptchaToken] = useState(null);
 
   const { connecter, connecterEcole } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // MODE SOMBRE
   const [isDark, setIsDark] = useState(() => localStorage.getItem("theme") === "dark");
 
   useEffect(() => {
@@ -31,7 +28,6 @@ export default function Login() {
     }
   }, [isDark]);
 
-  // GESTION DU RETOUR OAUTH
   useEffect(() => {
     const oauthError = searchParams.get("oauth_error");
     const oauthToken = searchParams.get("oauth_token");
@@ -66,7 +62,6 @@ export default function Login() {
     e.preventDefault();
     setErreur("");
     
-    // On vérifie que le CAPTCHA est validé
     if (!captchaToken) {
       setErreur("Veuillez valider le CAPTCHA avant de continuer.");
       return;
@@ -74,7 +69,6 @@ export default function Login() {
 
     setChargement(true);
     try {
-      // On passe le captchaToken à la fonction connecter
       const res = await connecter(identifiant, motDePasse, captchaToken);
       if (res.choix_ecole_requis) {
         setChoixEcoles(res);
@@ -106,7 +100,7 @@ export default function Login() {
   return (
     <div className="connexion-page position-relative">
       
-      {/* BOUTON MODE SOMBRE */}
+      {/* ICÔNE MODE SOMBRE (Sans fond) */}
       <div className="position-absolute top-0 end-0 p-4">
         <button 
           type="button" 
@@ -117,16 +111,16 @@ export default function Login() {
         </button>
       </div>
 
-      <div className="connexion-boite">
+      <div className="connexion-boite shadow-sm">
         <div className="text-center mb-4">
-          <div style={{ width: 56, height: 56, background: isDark ? '#334155' : '#e0e7ff', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <i className="bi bi-mortarboard-fill" style={{ fontSize: 28, color: '#6366f1' }}></i>
+          <div className="logo-login mb-3" style={{ background: isDark ? '#334155' : '#e0e7ff' }}>
+            <i className="bi bi-mortarboard-fill text-primary"></i>
           </div>
-          <h2 className="fw-bold" style={{ fontSize: 24, letterSpacing: '-0.5px' }}>Bienvenue</h2>
-          <p className="text-muted" style={{ fontSize: 14 }}>Connectez-vous à votre espace.</p>
+          <h2 className="fw-bold mb-1">Bienvenue</h2>
+          <p className="text-muted small">Connectez-vous à votre espace.</p>
         </div>
 
-        {erreur && <div className="alert alert-danger py-2 text-center" style={{ fontSize: 13, borderRadius: 10 }}>{erreur}</div>}
+        {erreur && <div className="alert alert-danger py-2 text-center small rounded-3">{erreur}</div>}
 
         {choixEcoles ? (
           <div>
@@ -151,7 +145,7 @@ export default function Login() {
         ) : (
           <form onSubmit={submit}>
             <div className="mb-3">
-              <label className="form-label text-muted" style={{ fontSize: 13, fontWeight: 600 }}>Adresse email</label>
+              <label className="form-label text-muted small fw-bold">Adresse email</label>
               <input 
                 type="text" 
                 className="form-control" 
@@ -162,7 +156,7 @@ export default function Login() {
               />
             </div>
             <div className="mb-4">
-              <label className="form-label text-muted" style={{ fontSize: 13, fontWeight: 600 }}>Mot de passe</label>
+              <label className="form-label text-muted small fw-bold">Mot de passe</label>
               <input 
                 type="password" 
                 className="form-control" 
@@ -173,10 +167,9 @@ export default function Login() {
               />
             </div>
 
-            {/* WIDGET CLOUDFLARE TURNSTILE */}
             <div className="mb-4 d-flex justify-content-center">
               <Turnstile
-                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
                 onSuccess={(token) => setCaptchaToken(token)}
                 onError={() => setErreur("Erreur de chargement du CAPTCHA.")}
                 onExpire={() => setCaptchaToken(null)}
@@ -184,24 +177,26 @@ export default function Login() {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary w-100" disabled={chargement || !captchaToken}>
+            {/* BOUTON SE CONNECTER (Gris foncé, pas bleu) */}
+            <button type="submit" className="btn btn-dark w-100 py-3 fw-bold mb-4" disabled={chargement || !captchaToken} style={{ borderRadius: 12 }}>
               {chargement ? "Connexion en cours..." : "Se connecter"}
             </button>
 
             <div className="separateur-ou">OU CONTINUER AVEC</div>
 
             <div className="d-flex gap-3 mb-4">
-              <button type="button" className="btn-social google w-50" onClick={() => loginOAuth('google')}>
+              <button type="button" className="btn-social google" onClick={() => loginOAuth('google')}>
                 <i className="bi bi-google"></i> Google
               </button>
-              <button type="button" className="btn-social facebook w-50" onClick={() => loginOAuth('facebook')}>
+              <button type="button" className="btn-social facebook" onClick={() => loginOAuth('facebook')}>
                 <i className="bi bi-facebook"></i> Facebook
               </button>
             </div>
 
             <div className="text-center pt-4 border-top">
-              <p className="mb-2 text-muted" style={{ fontSize: 13 }}>Vous n'avez pas encore d'espace ?</p>
-              <Link to="/creer-espace" className="btn btn-outline-primary w-100" style={{ borderRadius: 12 }}>
+              <p className="mb-2 text-muted small">Vous n'avez pas encore d'espace ?</p>
+              {/* BOUTON CRÉER UN ESPACE (Transparent/Ghost) */}
+              <Link to="/creer-espace" className="btn btn-outline-primary w-100 fw-bold" style={{ borderRadius: 12 }}>
                 Créer un espace
               </Link>
             </div>

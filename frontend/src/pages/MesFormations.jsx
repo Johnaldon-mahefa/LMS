@@ -6,9 +6,6 @@ import { useConfirm } from "../context/ConfirmContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import ReactMarkdown from "react-markdown";
 
-/* ============================================================
-   Liste des formations suivies.
-   ============================================================ */
 export function MesFormations() {
   const toast = useToast();
   const [liste, setListe] = useState([]);
@@ -65,9 +62,6 @@ export function MesFormations() {
   );
 }
 
-/* ============================================================
-   Contenu d'une formation suivie.
-   ============================================================ */
 export function ContenuFormation() {
   const { id } = useParams();
   const toast = useToast();
@@ -108,6 +102,8 @@ export function ContenuFormation() {
 
   if (!c) return <div className="p-5 text-center text-muted">Chargement...</div>;
 
+  const estFermee = c.inscription.statut_session === 'fermee';
+
   return (
     <div className="container py-4" style={{ maxWidth: '900px' }}>
       <div className="mb-4 pb-3 border-bottom">
@@ -115,6 +111,11 @@ export function ContenuFormation() {
           <i className="bi bi-arrow-left me-1"></i> Retour à mes formations
         </Link>
         <h1 className="h3 fw-bold mt-3 text-primary">{c.inscription.formation}</h1>
+        {estFermee && (
+          <div className="alert alert-warning mt-3 mb-0 py-2">
+            <i className="bi bi-lock-fill me-2"></i> Cette session est clôturée. Vous ne pouvez plus déposer de travaux ni passer de nouveaux QCM.
+          </div>
+        )}
       </div>
 
       {c.modules.length === 0 && <div className="alert alert-warning border-0 shadow-sm">Aucun module n'est encore publié.</div>}
@@ -183,12 +184,14 @@ export function ContenuFormation() {
                             </div>
                           )}
 
-                          {(typeEval === 'qcm' || typeEval === 'mixte') && aQcmAccess && (
+                          {/* QCM : caché si la session est fermée */}
+                          {(typeEval === 'qcm' || typeEval === 'mixte') && aQcmAccess && !estFermee && (
                             <Link to={`/apprenant/qcm/${e.id_evaluation}`} className="btn btn-primary btn-sm w-100 mb-2">
                               {e.meilleur_score !== null ? "Repasser le QCM" : "Passer le QCM"}
                             </Link>
                           )}
 
+                          {/* PDF : caché si la session est fermée */}
                           {(typeEval === 'fichier' || typeEval === 'mixte') && (
                             e.soumission ? (
                               <div className="alert alert-secondary py-2 px-3 small mb-0 border-0">
@@ -196,6 +199,10 @@ export function ContenuFormation() {
                                 {e.soumission.statut_soumission === "corrigee" 
                                   ? <span className="text-success fw-bold">Note : {e.soumission.note} / {e.note_maximale}</span> 
                                   : <span className="text-warning fw-bold">En attente de correction</span>}
+                              </div>
+                            ) : estFermee ? (
+                              <div className="alert alert-warning py-2 px-3 small mb-0 border-0">
+                                <i className="bi bi-lock me-1"></i> Session terminée : dépôt impossible.
                               </div>
                             ) : (
                               <form onSubmit={(ev) => deposer(ev, e.id_evaluation)}>
@@ -235,7 +242,6 @@ export function ContenuFormation() {
               </div>
             )}
           </div>
-
         </div>
       ))}
     </div>

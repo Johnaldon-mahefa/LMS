@@ -1,7 +1,6 @@
-// Routes de l'administrateur : organiser les formations, gérer les inscriptions. RG15 : rôle administrateur uniquement.
 import { Router } from "express";
 import { authenticate, requireRole } from "../middlewares/auth.js";
-import { checkFeature } from "../middlewares/featureGating.js"; // <-- NOUVEAU
+import { checkFeature } from "../middlewares/featureGating.js";
 import * as Formations from "../controllers/formations.controller.js";
 import * as Inscriptions from "../controllers/inscriptions.controller.js";
 import * as Statistiques from "../controllers/statistiques.controller.js";
@@ -9,7 +8,6 @@ import * as Statistiques from "../controllers/statistiques.controller.js";
 const r = Router();
 r.use(authenticate, requireRole("administrateur"));
 
-// BLOQUÉ SI PAS DE PLAN PRO (EXPORT_PDF)
 r.get("/statistiques", checkFeature("EXPORT_PDF"), Statistiques.globales);
 
 r.get("/formations", Formations.lister);
@@ -24,7 +22,9 @@ r.post("/formations/:id/sessions", Formations.creerSession);
 r.put("/sessions/:id", Formations.modifierSession);
 r.delete("/sessions/:id", Formations.supprimerSession);
 
-// BLOQUÉ SI PAS DE PLAN PRO (MULTI_FORMATEUR)
+// NOUVELLE ROUTE : Clôturer une session
+r.patch("/sessions/:id/cloturer", Formations.cloturerSession);
+
 r.post("/sessions/:id/formateurs", checkFeature("MULTI_FORMATEUR"), Formations.affecterFormateur);
 r.delete("/sessions/:id/formateurs/:idFormateur", Formations.retirerFormateur);
 

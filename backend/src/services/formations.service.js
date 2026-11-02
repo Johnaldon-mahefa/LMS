@@ -2,7 +2,8 @@ import { AppError } from "../utils/AppError.js";
 import * as Formation from "../models/formation.model.js";
 import * as Session from "../models/session.model.js";
 import * as Utilisateur from "../models/utilisateur.model.js";
-import { query } from "../config/db.js";
+import { query, withTransaction } from "../config/db.js"; // <-- Ajout withTransaction
+import * as Resultats from "./resultats.service.js"; // <-- Ajout pour attestations
 
 async function chargerFormation(id) {
   const formation = await Formation.findById(id);
@@ -107,7 +108,6 @@ export async function supprimerSession(id) {
   await Session.remove(id);
 }
 
-// CORRECTION ICI : Une seule déclaration, avec la vérification Multi-Tenant
 export async function affecterFormateur(idSession, idFormateur) {
   const session = await chargerSession(idSession);
   const formation = await Formation.findById(session.id_formation);
@@ -131,4 +131,46 @@ export async function retirerFormateur(idSession, idFormateur) {
   await chargerSession(idSession);
   await Session.removeFormateur(idSession, idFormateur);
   return Session.findById(idSession);
+}
+
+// NOUVELLE FONCTION : Clôturer une session et générer les attestations
+export async function cloturerSession(idSession, idEtablissement) {
+  return await withTransaction(async (client) => {
+    // 1. Vérifier que la session appartient à l'établissement
+    const check = await client.query(`
+      SELECT s.id_session FROM session s
+      JOIN formation f ON s.id_formation = f.id_formation
+      WHERE s.id_session = $1 AND f.id_etablissement = $2
+    `, [idSession, idEtablissement]);
+    
+    if (check.rowCount === 0) throw new AppError(404, "Session introuvable ou non autorisée.");
+
+    // 2. Fermer la session
+    await client.query("UPDATE session SET statut_session = 'fermee' WHERE id_session = $1", [idSession]);
+
+    // 3. Récupérer les apprenants validés
+    const apprenants = await client.query(`
+      SELECT i.id_inscription, i.id_utilisateur 
+      FROM inscription i 
+      WHERE i.id_session = $1 AND i.statut_inscription = 'validee'
+    `, [idSession]);
+
+    let attestationsGenerees = 0;
+    
+    // 4. Générer les attestations (hors transaction pour éviter les conflits de verrous)
+    for (const app of apprenants.rows) {
+      try {
+        await Resultats.delivrerAttestation(app.id_inscription, app.id_utilisateur);
+        attestationsGenerees++;
+      } catch (e) {
+        // Si l'apprenant n'a pas 100%, delivrerAttestation lèvera une erreur, on l'ignore
+        console.log(`Attestation non délivrée pour ${app.id_inscription}: ${e.message}`);
+      }
+    }
+
+    return { 
+      success: true, 
+      message: `Session clôturée avec succès. ${attestationsGenerees} attestation(s) générée(s).` 
+    };
+  });
 }

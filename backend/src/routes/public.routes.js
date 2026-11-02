@@ -6,7 +6,8 @@ const r = Router();
 
 r.get("/ecoles", Controller.listerEcoles);
 r.get("/ecoles/:idEtablissement/formations", Controller.listerFormations);
+r.get("/plans", Controller.listerPlans); // <-- NOUVELLE ROUTE PUBLIQUE
 r.post("/inscription", verifierTurnstile, Controller.inscriptionPublique);
-r.get("/attestation/:numero", Controller.verifierAttestation); // <-- NOUVELLE ROUTE
+r.get("/attestation/:numero", Controller.verifierAttestation);
 
 export default r;

@@ -1,6 +1,7 @@
 import { query } from "../config/db.js";
 
-const COLS = `s.id_session, s.id_formation, s.date_debut, s.date_fin, s.capacite_max,
+// CORRECTION : Ajout de s.statut_session dans les colonnes récupérées
+const COLS = `s.id_session, s.id_formation, s.date_debut, s.date_fin, s.capacite_max, s.statut_session,
   (SELECT COUNT(*)::int FROM inscription i WHERE i.id_session = s.id_session AND i.statut_inscription = 'validee') AS nb_inscriptions,
   (s.capacite_max - (SELECT COUNT(*)::int FROM inscription i WHERE i.id_session = s.id_session AND i.statut_inscription = 'validee')) AS places_restantes`;
 
@@ -25,7 +26,7 @@ export async function findByFormation(idFormation) {
 // MULTI-TENANT : On filtre par établissement via la formation
 export async function findByFormateur(idFormateur, idEtablissement) {
   const { rows } = await query(`
-    SELECT s.id_session, s.date_debut, s.date_fin, s.capacite_max, f.intitule AS formation,
+    SELECT s.id_session, s.date_debut, s.date_fin, s.capacite_max, s.statut_session, f.intitule AS formation,
            (s.capacite_max - (SELECT COUNT(*)::int FROM inscription i WHERE i.id_session = s.id_session AND i.statut_inscription = 'validee')) AS places_restantes
     FROM session s
     JOIN formation f ON s.id_formation = f.id_formation
@@ -56,4 +57,4 @@ export const removeFormateur = (idSession, idUtilisateur) =>
 export async function formateurAffecte(idSession, idFormateur) {
   const { rows } = await query("SELECT 1 FROM affectation WHERE id_session = $1 AND id_utilisateur = $2", [idSession, idFormateur]);
   return rows.length > 0;
-} 
+}

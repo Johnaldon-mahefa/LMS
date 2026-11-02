@@ -14,15 +14,11 @@ export default function Formations() {
   const [ouverte, setOuverte] = useState(null);
   const [sessions, setSessions] = useState([]);
   
-  // État pour la création
   const [form, setForm] = useState({ intitule: "", description: "", duree: "", publicVise: "" });
   const [afficherForm, setAfficherForm] = useState(false);
   
-  // État pour la session et la modification
   const [session, setSession] = useState({ dateDebut: "", dateFin: "", capaciteMax: "" });
   const [modif, setModif] = useState(null);
-  
-  // États pour les filtres
   const [filtre, setFiltre] = useState("toutes");
   const [recherche, setRecherche] = useState("");
 
@@ -75,6 +71,17 @@ export default function Formations() {
     if (ouverte !== id) chargerSessions(id);
   };
 
+  // NOUVELLE FONCTION : Clôturer une session
+  async function cloturerSession(s) {
+    const ok = await confirmer({
+      titre: "Clôturer cette session ?",
+      message: "Les apprenants ayant validé leurs modules recevront automatiquement leur attestation. Aucun nouveau dépôt ne sera accepté.",
+      confirmer: "Clôturer",
+    });
+    if (!ok) return;
+    agir(() => api(`/admin/sessions/${s.id_session}/cloturer`, { method: "PATCH" }), "Session clôturée.");
+  }
+
   function ouvrirModif(f) {
     setModif({ id: f.id_formation, intitule: f.intitule, description: f.description || "", duree: f.duree || "", publicVise: f.public_vise || "" });
   }
@@ -106,8 +113,6 @@ export default function Formations() {
 
   return (
     <div className="container-fluid py-4">
-      
-      {/* EN-TÊTE */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <h1 className="h3 fw-bold mb-0">Organiser les formations</h1>
         <button className="btn btn-primary" onClick={() => setAfficherForm(true)}>
@@ -115,7 +120,6 @@ export default function Formations() {
         </button>
       </div>
 
-      {/* FILTRES */}
       <div className="filtres-haut mb-4">
         <button type="button" onClick={() => setFiltre("toutes")} className={filtre === "toutes" ? "actif" : ""}>Toutes ({formations.length})</button>
         <button type="button" onClick={() => setFiltre("brouillon")} className={filtre === "brouillon" ? "actif" : ""}>Brouillons ({compte("brouillon")})</button>
@@ -124,7 +128,6 @@ export default function Formations() {
         <input type="search" placeholder="Rechercher par intitulé..." value={recherche} onChange={(e) => setRecherche(e.target.value)} />
       </div>
 
-      {/* GRILLE DE CARTES */}
       {chargement ? (
         <Loading texte="Chargement des formations…" />
       ) : listeFiltree.length === 0 ? (
@@ -139,16 +142,14 @@ export default function Formations() {
               <div className="card h-100 border-0 shadow-sm hover-shadow">
                 <div className="card-body p-4 d-flex flex-column">
                   
-                  {/* Statut + Titre */}
                   <div className="d-flex justify-content-between align-items-start mb-3">
                     <span className={`etiquette ${f.statut_formation}`}>{f.statut_formation}</span>
                   </div>
                   <h4 className="fw-bold mb-2 text-dark">{f.intitule}</h4>
                   <p className="text-muted small mb-3">
-                    <i className="bi bi-calendar-event me-1"></i> {f.nb_sessions} session(s) • <i className="bi bi-collection-play ms-2 me-1"></i> {f.nb_modules_publies}/{f.nb_modules} module(s) publié(s)
+                    <i className="bi bi-calendar-event me-1"></i> {f.nb_sessions} session(s) • <i className="bi bi-collection-play ms-2 me-1"></i> {f.nb_modules_publies}/{f.nb_modules} module(s)
                   </p>
 
-                  {/* Boutons d'action (Ghost) */}
                   <div className="d-flex flex-wrap gap-2 mt-auto pt-3 border-top">
                     <button type="button" className="btn-ghost" onClick={() => ouvrir(f.id_formation)}>
                       <i className="bi bi-calendar-event me-1"></i> {ouverte === f.id_formation ? "Masquer" : "Sessions"}
@@ -179,7 +180,6 @@ export default function Formations() {
                   </div>
                 </div>
 
-                {/* SECTION SESSIONS (Si ouverte) */}
                 {ouverte === f.id_formation && (
                   <div className="card-footer bg-light border-top p-4">
                     <h6 className="fw-bold mb-3">Sessions de la formation</h6>
@@ -187,11 +187,11 @@ export default function Formations() {
                     <div className="table-responsive mb-4">
                       <table className="table table-sm table-borderless align-middle">
                         <thead className="text-muted small text-uppercase">
-                          <tr><th>Début</th><th>Fin</th><th>Places</th><th>Formateurs</th><th></th></tr>
+                          <tr><th>Début</th><th>Fin</th><th>Places</th><th>Statut</th><th>Formateurs</th><th>Actions</th></tr>
                         </thead>
                         <tbody>
                           {sessions.length === 0 ? (
-                            <tr><td colSpan="5" className="text-center text-muted py-3">Aucune session créée.</td></tr>
+                            <tr><td colSpan="6" className="text-center text-muted py-3">Aucune session créée.</td></tr>
                           ) : (
                             sessions.map((s) => (
                               <tr key={s.id_session}>
@@ -199,18 +199,27 @@ export default function Formations() {
                                 <td>{new Date(s.date_fin).toLocaleDateString('fr-FR')}</td>
                                 <td><span className="badge bg-secondary">{s.places_restantes} / {s.capacite_max}</span></td>
                                 <td>
+                                  {s.statut_session === 'ouverte' ? (
+                                    <span className="badge bg-success">Ouverte</span>
+                                  ) : (
+                                    <span className="badge bg-secondary">Terminée</span>
+                                  )}
+                                </td>
+                                <td>
                                   {s.formateurs.map((x) => (
                                     <span key={x.id_utilisateur} className="badge bg-light text-dark border me-1 mb-1">
                                       {x.prenom} {x.nom}
-                                      <button type="button" className="btn-close ms-1" style={{ fontSize: '0.5rem' }} onClick={() => agir(() => api(`/admin/sessions/${s.id_session}/formateurs/${x.id_utilisateur}`, { method: "DELETE" }), "Formateur retiré.")}></button>
                                     </span>
                                   ))}
-                                  <select className="form-select form-select-sm d-inline-block" style={{ width: 'auto' }} defaultValue="" onChange={(e) => { if (e.target.value) agir(() => api(`/admin/sessions/${s.id_session}/formateurs`, { method: "POST", body: { idFormateur: Number(e.target.value) } }), "Formateur affecté."); e.target.value = ""; }}>
-                                    <option value="">+ Affecter</option>
-                                    {formateurs.map((x) => <option key={x.id_utilisateur} value={x.id_utilisateur}>{x.prenom} {x.nom}</option>)}
-                                  </select>
                                 </td>
-                                <td>
+                                <td className="text-end">
+                                  {s.statut_session === 'ouverte' ? (
+                                    <button type="button" className="btn btn-sm btn-outline-danger me-2" onClick={() => cloturerSession(s)}>
+                                      <i className="bi bi-lock me-1"></i> Clôturer
+                                    </button>
+                                  ) : (
+                                    <span className="text-muted small fst-italic me-2">Clôturée</span>
+                                  )}
                                   <button type="button" className="btn-ghost-danger p-1" onClick={() => supprimerSession(s)} title="Supprimer la session">
                                     <i className="bi bi-trash"></i>
                                   </button>
@@ -222,7 +231,6 @@ export default function Formations() {
                       </table>
                     </div>
 
-                    {/* Formulaire d'ajout de session */}
                     <form className="d-flex flex-wrap gap-2 align-items-end bg-white p-3 rounded-3 border" onSubmit={(e) => { e.preventDefault(); agir(() => api(`/admin/formations/${f.id_formation}/sessions`, { method: "POST", body: session }), "Session créée."); setSession({ dateDebut: "", dateFin: "", capaciteMax: "" }); }}>
                       <div className="flex-grow-1">
                         <label className="small fw-bold text-muted mb-1">Début</label>
@@ -246,7 +254,7 @@ export default function Formations() {
         </div>
       )}
 
-      {/* MODALE DE CRÉATION DE FORMATION */}
+      {/* MODALE DE CRÉATION */}
       {afficherForm && (
         <div className="lms-modal-overlay" onClick={(e) => e.target === e.currentTarget && setAfficherForm(false)}>
           <div className="lms-modal-box">
